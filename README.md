@@ -31,7 +31,7 @@ The seismic part also needs its Python back end and the seismic cubes, which sit
 - **Assumptions.** Every threshold is a slider and the map is recalculated at once. Each well takes a measured pore pressure.
 - **Validation.** Does the screen find the fields where the method is already in use?
 - **Tour.** A six-step walk-through for a four-minute demo. Arrow keys move between steps.
-- **Links.** `#well=35/11-7`, `#wellbore=7/12-A-7 D`, `#field=TROLL` open a selection directly; `#well=Nini-4` opens the one well outside the atlas.
+- **Links.** `#well=35/11-7`, `#wellbore=7/12-A-7 D`, `#field=TROLL` open a selection directly; `#well=Nini-4` and `#well=Nini-5` open the two wells outside the atlas.
 
 ## How the screen works
 
@@ -107,7 +107,7 @@ Built during the hackathon, on 19 November 2026. It is the **Seismic and 3D** si
 - **Follow the clay away from the well.** One press follows the event at a top through the whole cube. Two followed events give a thickness map, and each followed event is compared with the same top in the other wells.
 - **Logs predicted from seismic.** P velocity, impedance and gamma ray as colour on the inline through a well, with a blind test at every well (see below for how well it works).
 
-The cubes are TNE01 (Troll East) and GN1101 (Smeaheia) from the Smeaheia dataset of Gassnova and Equinor, the 1994 baseline survey of Sleipner (full stack, 94p07) from the Sleipner 4D dataset of the Sleipner Group, and a box of the Danish survey NODAB-97 around the well Nini-4, from the free data of GEUS. Atlas wells inside them: 31/3-3 and 31/3-4 in TNE01, 32/2-1 and 32/4-1 in GN1101, 15/9-13 at Sleipner. Nini-4 is Danish and not in the atlas; it has its own section below.
+The cubes are TNE01 (Troll East) and GN1101 (Smeaheia) from the Smeaheia dataset of Gassnova and Equinor, the 1994 baseline survey of Sleipner (full stack, 94p07) from the Sleipner 4D dataset of the Sleipner Group, and a box of the Danish survey NODAB-97 around the wells Nini-4 and Nini-5, from the free data of GEUS. Atlas wells inside them: 31/3-3 and 31/3-4 in TNE01, 32/2-1 and 32/4-1 in GN1101, 15/9-13 at Sleipner. The two Nini wells are Danish and not in the atlas; they have their own section below. The tie window never starts more than 60 ms above the first sonic sample.
 
 **The one well with a measured time-depth relation.** 15/9-13 comes with a checkshot-corrected sonic log (curve DT-CKS of the Sleipner reference dataset) from sea level to 2000 m. Integrated as it is, with nothing picked or fitted, it puts the sea bed at 109 ms where the seismic shows it at 110 ms. The best bulk shift over the whole log is 0 ms, with normal polarity. The correlation is 0.56 between 800 and 1300 ms, across the Utsira Formation and the top of the Hordaland Group at 1176 ms, 0.29 over the whole log, and 0.12 inside the Hordaland clay below (1116 to 1988 ms). So with the time-depth relation right, the top of the clay ties and the inside of the clay does not: it has little reflectivity of its own to tie to.
 
@@ -118,8 +118,8 @@ The cubes are TNE01 (Troll East) and GN1101 (Smeaheia) from the Smeaheia dataset
 | Well | Time-depth | Tie window | Shift | Correlation in the window | Without the shift |
 |---|---|---|---|---|---|
 | 15/9-13 | checkshot-corrected sonic | 800 to 1300 ms (set by hand) | none | 0.56 | 0.56 |
-| 32/2-1 | tied to picks | 582 to 1254 ms (whole log) | +10 ms | 0.54 | -0.16 |
-| 32/4-1 | tied to picks | 631 to 1067 ms | +18 ms | 0.64 | -0.50 |
+| 32/2-1 | tied to picks | 646 to 1254 ms (whole log) | +10 ms | 0.54 | -0.16 |
+| 32/4-1 | tied to picks | 870 to 1067 ms | +18 ms | 0.64 | -0.50 |
 | 31/3-3 | not calibrated | 592 to 1011 ms | +20 ms | 0.37 | -0.22 |
 | 31/3-4 | not calibrated | 1169 to 1578 ms | +32 ms | 0.50 | -0.06 |
 
@@ -135,51 +135,65 @@ What to keep in mind:
 - No report-quoted Green Clay depth lies inside either cube, so the Green Clay line is the predictor's estimate, not an observation.
 - At 31/3-4 FactPages lists no Hordaland Group but 444 m with "no formal name" under the Utsira Formation. The event followed from the Hordaland top in 31/3-3 continues to that well. Whether it is the same clay has not been checked.
 
-### Nini-4: the green clay with a shear log, a measured tie and measured smectite
+### Nini-4 and Nini-5: the Eocene clay with shear logs, measured ties and measured smectite
 
 ![Nini-4 on the NODAB-97 seismic, with the well tie, the Vp/Vs log and the smectite samples](docs/app-nini-4-on-seismic.jpg)
 
-None of the five Norwegian wells above has a shear sonic log, a measured time-depth relation and mineralogy together. The Danish well Nini-4 (2002, Nini West, the field studied as a CO2 store in Project Greensand) has all three in open data, so it is in the app as a well outside the atlas: on the map, in the search and as `#well=Nini-4`. It is not screened. What it shows is the Horda Formation, the Eocene clay of the Hordaland Group, which GEUS describes as greenish grey to greyish green mudstone. Whether that is the same clay as the Green Clay at any Norwegian field is not shown here.
+None of the five Norwegian wells above has a shear sonic log, a measured time-depth relation and mineralogy together. Two Danish wells have them in the open data of GEUS: Nini-4 (2002, Nini West, the field studied as a CO2 store in Project Greensand) and Nini-5 (2007, Nini East, 12 km away). Both have a shear log and a vertical seismic profile, and Nini-4 also has smectite measured on samples. They are in the app as wells outside the atlas: on the map, in the search and as `#well=Nini-4` and `#well=Nini-5`. They are not screened. What they show is the Horda Formation, the Eocene clay at the base of the Hordaland Group, which the operator's report describes as pale greenish grey claystone. Whether that is the same clay as the Green Clay at any Norwegian field is not shown here.
 
-- **Seismic.** The released final migration of NODAB-97 is 2.2 million traces with an irregular outline, IBM floats, whole-metre coordinates and the line and CDP numbers in header bytes 181 and 21. Three lines are stored twice, with identical samples. `seismic/server/crop_segy.py` cuts a regular box out of it: 501 lines by 701 CDPs (6.3 by 8.8 km) around the well, 0 to 2400 ms at 4 ms.
-- **Time-depth.** The rig-source vertical seismic profile of the well: 58 measured levels from 320 to 1880 m, vertical times below mean sea level. Nothing is picked on the seismic and nothing is shifted.
-- **Tie.** With no shift the synthetic correlates 0.51 with the seismic between 779 and 1724 ms (top of the Lark Formation to the Sele Formation) and 0.45 over the whole log. That is with the zero-phase wavelet that has the spectrum of the seismic; the survey was spectrally whitened, and a 25 Hz Ricker gives 0.11.
-- **Polarity: the data contradict the documents.** The textual header of the SEG-Y file and section 5.4.1 of the processing report both say that a negative number is an increase in acoustic impedance. The sea bed, which is certain to be an increase, is a positive number in 96 % of 3,621 traces of the box, at 80 ms, where 59 m of water puts it. With the documented polarity the same unshifted tie is -0.51, and it becomes +0.56 only if the synthetic is moved 6 ms earlier. The app therefore uses the polarity of the sea bed and says so in the panel, where the box **Reverse polarity** shows the documented convention. Why the released file and its documents disagree has not been found out.
-- **Logs across the top of the Horda Formation at 1702 m.** Medians of 1600 to 1700 m against 1700 to 1760 m: gamma ray 97 to 57 API, compressional sonic 125 to 138 us/ft, density 2.30 to 2.17 g/cm3, Vp/Vs 2.4 to 2.7.
-- **Smectite on samples** (X-ray diffraction, GEUS Report 2022/31): 0 to 3 % in 34 samples of the Nordland Group, the Nolde sand and the Lark Formation above 1680 m, 14 % in the sample from 1690 to 1700 m, 26 to 54 % in 8 samples of the Horda Formation between 1707 and 1762 m, and 0 to 6 % in two cores of the Sele Formation below. The tie panel has a Vp/Vs track and a smectite track beside the synthetic.
+- **Seismic.** The released final migration of NODAB-97 is 2.2 million traces with an irregular outline, IBM floats, whole-metre coordinates and the line and CDP numbers in header bytes 181 and 21. Three lines are stored twice, with identical samples. `seismic/server/crop_segy.py` cuts a regular box out of it: 501 lines by 1101 CDPs (6.3 by 13.8 km) that holds both wells, 0 to 2400 ms at 4 ms.
+- **Time-depth.** The rig-source vertical seismic profile of each well: 58 measured levels from 320 to 1880 m in Nini-4, 68 from 200 to 1830 m in Nini-5. Nothing is picked on the seismic and nothing is shifted.
+- **Tops.** The operator's, from the final well reports in the same GEUS packages. The reports are scans, read by OCR and checked against themselves: measured depth minus depth below sea level gives the kelly bushing height in every row. The top of the Horda Formation is at 1701.8 m in Nini-4 and 1617 m in Nini-5, and the formation is 83 m and 43 m thick. The largest gamma-ray step within 15 m of those tops sits at 1702.3 m and 1617.0 m. The reports also print a two-way time beside each top, and the time-depth relations used here give the same times to within 1.5 ms. The one exception is the Frigg Sand in Nini-4 (8 ms), where the printed time does not fit its own neighbours.
+- **Tie at Nini-4.** With no shift the synthetic correlates 0.52 with the seismic between 774 and 1726 ms (from the first sonic sample to below the Rogaland top) and 0.45 over the whole log. A shift of +2 ms would give 0.58. That is with the zero-phase wavelet that has the spectrum of the seismic; the survey was spectrally whitened, and a 25 Hz Ricker gives 0.15.
+- **Tie at Nini-5.** With no shift the correlation is -0.15 (756 to 1608 ms). A shift of +6 ms gives 0.40, and between 1100 and 1350 ms it is -0.68 without a shift against 0.80 at +8 ms. The seismic arrives about 6 ms later than this well's profile predicts, against 2 ms at Nini-4. The app does not move a measured relation; the panel says what a shift would give.
+- **Polarity: the data contradict the documents.** The textual header of the SEG-Y file and section 5.4.1 of the processing report both say that a negative number is an increase in acoustic impedance. The sea bed, which is certain to be an increase, is a positive number in 96 % of 5,661 traces of the box, at 76 ms, where 59 m of water puts it at 80 ms. With the documented polarity the unshifted tie at Nini-4 is -0.52, and it becomes +0.58 only if the synthetic is moved 6 ms earlier. The app therefore uses the polarity of the sea bed and says so in the panel, where the box **Reverse polarity** shows the documented convention. Why the released file and its documents disagree has not been found out.
+- **The same contrast in both wells.** Medians of the 100 m above the top of the Horda Formation against the Horda clay below it:
+
+  | | Nini-4 above | Nini-4 Horda clay | Nini-5 above | Nini-5 Horda clay |
+  |---|---|---|---|---|
+  | Gamma ray, API | 97 | 57 | 90 | 49 |
+  | P velocity, m/s | 2435 | 2244 | 2473 | 2206 |
+  | S velocity, m/s | 1008 | 829 | 1066 | 833 |
+  | Vp/Vs | 2.43 | 2.70 | 2.32 | 2.66 |
+  | Density, g/cm3 | 2.29 | 2.16 | 2.28 | 2.13 |
+
+- **Smectite on samples, Nini-4 only** (X-ray diffraction, GEUS Report 2022/31): 0 to 3 % in 34 samples of the Nordland Group, the Nolde sand and the Lark Formation above 1680 m, 14 % in the sample from 1690 to 1700 m, 26 to 54 % in 8 samples of the Horda Formation between 1707 and 1762 m, and 0 to 6 % in two cores below. The tie panel has a Vp/Vs track and a smectite track beside the synthetic.
 
 What to keep in mind:
 
-- **One well.** It shows the contrast at one place; nothing is learned from it and nothing is predicted with it.
-- **The tops are not official.** The report labels every sample with its formation, so each top lies between the last sample of one unit and the first of the next. Inside that bracket the largest gamma-ray step is taken (Lark 808 m, Horda 1702 m); without a clear step the middle of the bracket is used and the top is marked approximate.
+- **Two wells, and samples from one of them.** They show the contrast at two places 12 km apart. Nothing is learned from them beyond the blind test below.
+- **The two ties disagree by 4 ms**, and with a wavelet this broad that is enough to turn the correlation at Nini-5 negative. A few milliseconds between a vertical seismic profile and a surface survey is ordinary; it has not been explained here.
+- **The formation names of the samples are the report's**, which follows a later lithostratigraphy than the operator's tops: it divides the clay above the Horda Formation into units of the Lark Formation, and its two deepest cores, called Sele there, lie in the operator's Lista and Vile formations.
 - **Cuttings are depth intervals**, 3 to 20 m long, and mix what was drilled in them. Two of the eight Horda samples are cores.
-- **The Horda Formation is thin here**, between 60 and 100 m (its base lies somewhere between a Horda core at 1762 m and a Sele core at 1801 m), far less than the hundreds of metres of clay screened in the Norwegian wells.
-- **High Vp/Vs and smectite are not ductility.** No deformation test is part of this.
-- **The table of smectite values is not in this repository.** The report states no licence, so `seismic/server/prep_nini.py` reads the values from the published spreadsheet and they stay with the seismic back end. The ranges above are cited from the report.
+- **The Horda Formation is thin here**, 83 m and 43 m including a sand at its base in Nini-4, far less than the hundreds of metres of clay screened in the Norwegian wells.
+- **High Vp/Vs and smectite are not ductility.** No deformation test of this clay is part of this. The rock-mechanics tests published for Nini-5 (SINTEF 2009, GEUS file 35990) were made on Sele shale below it.
+- **The table of smectite values is not in this repository.** The report states no licence, and the journal article on the same samples (Petersen et al. 2022, doi 10.1016/j.ijggc.2022.103675) is not open access. `seismic/server/prep_nini.py` reads the values from the published spreadsheet and they stay with the seismic back end. The ranges above are cited from the report.
 
 ### Logs predicted from seismic, and how well that works
 
-`seismic/server/predict_logs.py` predicts P velocity, acoustic impedance and gamma ray away from the wells, and the app draws the result as colour on the inline through a well (**Predicted from seismic** in the side panel) and as a blind curve beside the log in the well-tie panel. The inline is turned into features on a grid of 16 ms by 16 traces, the logs smoothed to 32 ms are the answer key at the well trace, and a ridge regression connects the two. Three sets of features are compared: two-way time below the sea bed alone (the compaction trend, no seismic), time plus classic attributes (relative impedance, envelope, RMS amplitude, instantaneous frequency), and time plus the patch embeddings of the NCS seismic foundation model ([Ordoñez et al. 2026](https://arxiv.org/abs/2603.23211); `NorskRegnesentralSTI/NCS-v1-2d-base`, Apache-2.0, frozen and not fine-tuned, 12 principal components).
+`seismic/server/predict_logs.py` predicts P velocity, acoustic impedance, gamma ray and, where a shear log exists to learn from, Vp/Vs away from the wells, and the app draws the result as colour on the inline through a well (**Predicted from seismic** in the side panel) and as a blind curve beside the log in the well-tie panel. The inline is turned into features on a grid of 16 ms by 16 traces, the logs smoothed to 32 ms are the answer key at the well trace, and a ridge regression connects the two. Three sets of features are compared: two-way time below the sea bed alone (the compaction trend, no seismic), time plus classic attributes (relative impedance, envelope, RMS amplitude, instantaneous frequency), and time plus the patch embeddings of the NCS seismic foundation model ([Ordoñez et al. 2026](https://arxiv.org/abs/2603.23211); `NorskRegnesentralSTI/NCS-v1-2d-base`, Apache-2.0, frozen and not fine-tuned, 12 principal components).
 
-The test is leave-one-well-out over the five wells: the model never sees the well it is scored on. Mean over the five wells, with the full table in [`data/log_prediction.json`](data/log_prediction.json):
+The test is leave-one-well-out over the seven wells in the four cubes: the model never sees the well it is scored on. Mean over the wells, with the full table in [`data/log_prediction.json`](data/log_prediction.json):
 
 | Property | Time trend only | + classic attributes | + NCS embeddings |
 |---|---|---|---|
-| P velocity: correlation, error | 0.87, 696 m/s | 0.76, 713 m/s | 0.73, 706 m/s |
-| Acoustic impedance: correlation, error | 0.83, 2096 | 0.67, 2137 | 0.65, 2119 |
-| Gamma ray: correlation, error | -0.25, 31.7 API | -0.04, 32.0 API | 0.20, 32.3 API |
+| P velocity, 7 wells: correlation, error | 0.74, 492 m/s | 0.67, 505 m/s | 0.70, 547 m/s |
+| Acoustic impedance, 7 wells: correlation, error | 0.74, 1493 | 0.64, 1485 | 0.66, 1538 |
+| Gamma ray, 7 wells: correlation, error | 0.44, 29.3 API | 0.23, 31.4 API | 0.40, 31.1 API |
+| Vp/Vs, 2 wells: correlation, error | 0.57, 0.155 | 0.48, 0.160 | 0.36, 0.253 |
 
 What that says:
 
-- **For velocity and impedance the seismic adds nothing here.** The depth trend alone does as well or better. Neither feature set lowers the mean error.
-- **For gamma ray nothing predicts well.** The NCS embeddings carry a weak signal: of what the trend misses, their part correlates 0.41 on average (0.01 to 0.73 over the wells; 0.30 for the classic attributes), but the error does not go down.
-- **Five wells in three areas is very little to learn from.** One of them is 300 km from the other four, the logs are of different vintages, gamma ray is not calibrated between them, and four of the five are placed in time by a fitted shift.
-- **The grid is coarse**: nothing finer than about 30 ms can come out, so thin beds are out of reach.
-- Shear velocity, ductility and smectite content are not predicted: there are no open measurements of them in these five wells to learn from. Nini-4 has a shear log and smectite on samples, in one well of another survey, which is enough to show them and not enough to learn from.
+- **For velocity and impedance the seismic adds nothing on average.** The depth trend alone has the lowest mean error for velocity and is level with the attributes for impedance. Well by well it is mixed: the classic attributes lower the velocity error in 4 of the 7 wells and the impedance error in 5, most clearly at Nini-4 (188 to 147 m/s). The NCS embeddings lower the velocity error in 2 of 7.
+- **For gamma ray nothing predicts well.** The NCS embeddings carry a weak signal: of what the trend misses, their part correlates 0.18 on average (-0.20 to 0.54 over the wells; -0.07 for the classic attributes). They lower the error in 4 of 7 wells and not on average.
+- **Vp/Vs is not predicted.** Three wells have a shear log and only the two Danish ones have enough of it on this grid to be scored, so each is predicted with the other left to learn from. The trend alone gives an error of 0.155, the attributes 0.160 and the NCS embeddings 0.253. The contrast to find at the top of the Horda Formation is about 0.3.
+- **Seven wells in four areas is very little to learn from.** The areas span about 470 km from north to south, the logs are of different vintages, gamma ray is not calibrated between them, and four of the seven wells are placed in time by a fitted shift.
+- **The grid is coarse**: nothing finer than about 30 ms can come out, so thin beds are out of reach. The Horda Formation at the two Danish wells is about 75 and 40 ms thick.
+- Ductility and smectite content are not predicted: no well has a deformation test of the clay, and smectite is measured in one well.
 
 So the tool is there, and with the open data it does not yet predict logs better than a depth trend. That is a result about the data, not a tuned model: nothing was fitted to make the table look better.
 
-Rebuild: `seismic/server/prep.py` converts a SEG-Y cube, `seismic/server/prep_wells.py` places the wells and writes `wells.json` beside the cube and `data/seismic_wells.json` for the atlas. For a survey that is not a regular grid, `seismic/server/crop_segy.py` first cuts a regular box out of it. `seismic/server/prep_nini.py` reads Nini-4 from the GEUS files into a well file that `prep_wells.py --extra` takes.
+Rebuild: `seismic/server/prep.py` converts a SEG-Y cube, `seismic/server/prep_wells.py` places the wells and writes `wells.json` beside the cube and `data/seismic_wells.json` for the atlas. For a survey that is not a regular grid, `seismic/server/crop_segy.py` first cuts a regular box out of it. `seismic/server/prep_nini.py` reads Nini-4 and Nini-5 from the GEUS files into a well file that `prep_wells.py --extra` takes.
 
 ## What it does not do
 
@@ -199,7 +213,7 @@ Rebuild: `seismic/server/prep.py` converts a SEG-Y cube, `seismic/server/prep_we
 | [Diskos report texts](https://zenodo.org/records/10775273), FORCE | Report quotes | CC BY 4.0 |
 | [Smeaheia dataset](https://co2datashare.org/dataset/smeaheia-dataset), Gassnova SF and Equinor ASA, CO2 DataShare, doi 10.11582/2021.00012 | Seismic cubes TNE01 and GN1101, logs and time-depth of 32/2-1 and 32/4-1 | [Smeaheia Dataset Licence](https://co2datashare.org/smeaheia-dataset/static/SMEAHEIA%20DATASET%20LICENSE_Gassnova%20and%20Equinor.pdf) (based on CC BY 4.0; may not be sold). Not redistributed here |
 | [Sleipner 4D Seismic Dataset](https://co2datashare.org/dataset/sleipner-4d-seismic-dataset) (doi 10.11582/2020.00005) and [Sleipner 2019 Benchmark Model](https://co2datashare.org/dataset/sleipner-2019-benchmark-model) (doi 10.11582/2020.00004), the Sleipner Group, CO2 DataShare | Seismic cube 94p07 (1994 baseline, full stack), logs of 15/9-13 | [Sleipner CO2 Reference Dataset Licence](https://co2datashare.org/sleipner-2019-benchmark-model/static/license.pdf) (based on CC BY 4.0; may not be sold). Not redistributed here |
-| [Free Danish subsurface data](https://eng.geus.dk/products-services-facilities/data-and-maps/subsurface-data-denmark), Geological Survey of Denmark and Greenland (GEUS): 3D survey NODAB-97 (CGG 1997 to 1999) and well package NINI-4 | Seismic box around Nini-4; its logs, deviation and vertical seismic profile | [GEUS terms for free Danish subsurface data](https://data.geus.dk/ugdata2d3d/terms_20230906.pdf) of 19 September 2023: use and derived products allowed, GEUS to be named as the source. Not redistributed here |
+| [Free Danish subsurface data](https://eng.geus.dk/products-services-facilities/data-and-maps/subsurface-data-denmark), Geological Survey of Denmark and Greenland (GEUS): 3D survey NODAB-97 (CGG 1997 to 1999) and well packages NINI-4 and NINI-5 | Seismic box around Nini-4 and Nini-5; their logs, deviation, vertical seismic profiles and the tops in their final well reports | [GEUS terms for free Danish subsurface data](https://data.geus.dk/ugdata2d3d/terms_20230906.pdf) of 19 September 2023: use and derived products allowed, GEUS to be named as the source. Not redistributed here |
 | Schovsbo, Petersen, Weibel and Springer 2023, Upper seal characterisation and capacity evaluation based on cutting analysis of the Nini-4 well, GEUS Report 2022/31, [doi 10.22008/gpub/34666](https://doi.org/10.22008/gpub/34666), Appendix F | Smectite contents and formation labels of the Nini-4 samples | No licence stated. Cited; the values are not in this repository |
 | [NCS seismic foundation model](https://github.com/NorskRegnesentral/NCS_models), Norwegian Computing Center (Ordoñez et al. 2026, arXiv:2603.23211) | Features for the log prediction | Apache-2.0. Not redistributed here |
 | [Natural Earth](https://www.naturalearthdata.com/) | Land polygons | Public domain |

@@ -18,6 +18,9 @@ The regression is a ridge regression.  The test is leave-one-well-out: the model
 on.  A model is only worth anything if it beats "time" in that test.  The scores are Pearson correlation and RMS
 error against the smoothed log.
 
+Vp/Vs is tested only among the wells with a shear sonic log; with three such wells every blind test has two wells
+to learn from, which shows whether the idea works at all and little more.
+
 The logs are placed in time with the bulk shifts of the app's well tie (--shift).  Gamma ray is not calibrated
 between wells of different vintages and is predicted as it is.  16 ms by 16 traces is the grid of the foundation
 model's patches after shifting the crops four times in time; nothing finer than about 30 ms can come out.
@@ -39,7 +42,9 @@ N_T = 512                # samples used: 0 to 2044 ms
 PATCH = 16               # samples and traces per patch of the foundation model
 CROP = 224
 STEP_T = 4               # the crops are shifted by this many samples -> one feature every 16 ms
-PROPS = (("vp", "vp", "m/s"), ("gr", "gr", "API"), ("ai", "ai", "m/s·g/cm³"))
+# (key, curve in wells.json, unit, decimals).  Vp/Vs exists only where a shear sonic was logged; the other wells are
+# left out of its test and of its training.
+PROPS = (("vp", "vp", "m/s", 0), ("gr", "gr", "API", 0), ("ai", "ai", "m/s·g/cm³", 0), ("vpvs", "vpvs", "", 2))
 
 
 def boxcar(a, n):
@@ -209,8 +214,8 @@ def main(argv=None):
             tl = L["t0"] + L["dt"] * np.arange(L["n"]) + sh
             n_s = int(round(32.0 / L["dt"])) | 1
             y = {}
-            for key, src, _ in PROPS:
-                v = np.array([np.nan if q is None else q for q in L[src]], float)
+            for key, src, _, _ in PROPS:
+                v = np.array([np.nan if q is None else q for q in (L.get(src) or [None] * L["n"])], float)
                 vs = boxcar(v, n_s)
                 y[key] = np.interp(tf, tl, np.where(np.isfinite(vs), vs, 0.0), left=np.nan, right=np.nan)
                 y[key][np.interp(tf, tl, np.isfinite(vs).astype(float), left=0, right=0) < 0.99] = np.nan
@@ -241,7 +246,7 @@ def main(argv=None):
 
     # ---- leave-one-well-out ----
     table, curves = [], {}
-    for key, _, unit in PROPS:
+    for key, _, unit, nd in PROPS:
         for held in S:
             row = dict(prop=key, unit=unit, well=held["well"]["name"], cube=held["ds"])
             yt = held["y"][key]
@@ -259,39 +264,42 @@ def main(argv=None):
                 m, alpha = fit_with_cv(np.array(gs), np.concatenate(Xs), np.concatenate(ys))
                 p = ridge_predict(m, design(held, kind))
                 r = float(np.corrcoef(p[okt], yt[okt])[0, 1])
-                row[kind] = dict(r=round(r, 2), rmse=round(float(np.sqrt(np.mean((p[okt] - yt[okt]) ** 2))), 1), alpha=alpha)
+                row[kind] = dict(r=round(r, 2), rmse=round(float(np.sqrt(np.mean((p[okt] - yt[okt]) ** 2))), 1 + nd), alpha=alpha)
                 if kind == "time":
                     p_time = p
                 else:                                                # what the seismic adds: does it explain what the trend misses?
                     rr = float(np.corrcoef((p - p_time)[okt], (yt - p_time)[okt])[0, 1])
                     row[kind]["r_resid"] = round(rr, 2) if np.isfinite(rr) else None
-                curves.setdefault(held["well"]["name"], {}).setdefault(key, {})[kind] = [None if not np.isfinite(v) else round(float(v), 1) for v in p]
-            curves[held["well"]["name"]][key]["log"] = [None if not np.isfinite(v) else round(float(v), 1) for v in yt]
+                curves.setdefault(held["well"]["name"], {}).setdefault(key, {})[kind] = [None if not np.isfinite(v) else round(float(v), 1 + nd) for v in p]
+            curves[held["well"]["name"]][key]["log"] = [None if not np.isfinite(v) else round(float(v), 1 + nd) for v in yt]
             table.append(row)
 
     print("\nBlind test, leave one well out (r = correlation with the smoothed log, rmse in the log's unit):")
     for row in table:
-        print("  %-3s %-8s n=%3d  " % (row["prop"], row["well"], row["n"]) + "  ".join(
-            "%s r=%+.2f rmse=%7.1f%s" % (k, row[k]["r"], row[k]["rmse"], "" if k == "time" or row[k].get("r_resid") is None else " resid r=%+.2f" % row[k]["r_resid"]) for k in sets))
+        print("  %-4s %-8s n=%3d  " % (row["prop"], row["well"], row["n"]) + "  ".join(
+            "%s r=%+.2f rmse=%8.2f%s" % (k, row[k]["r"], row[k]["rmse"], "" if k == "time" or row[k].get("r_resid") is None else " resid r=%+.2f" % row[k]["r_resid"]) for k in sets))
     summary = {}
-    for key, _, unit in PROPS:
+    for key, _, unit, nd in PROPS:
         rows = [r for r in table if r["prop"] == key]
-        summary[key] = {k: dict(mean_r=round(float(np.mean([r[k]["r"] for r in rows])), 2), mean_rmse=round(float(np.mean([r[k]["rmse"] for r in rows])), 1),
+        if not rows:
+            continue
+        summary[key] = {k: dict(mean_r=round(float(np.mean([r[k]["r"] for r in rows])), 2), mean_rmse=round(float(np.mean([r[k]["rmse"] for r in rows])), 1 + nd),
                                 wins_over_time=int(sum(r[k]["rmse"] < r["time"]["rmse"] for r in rows)), wells=len(rows),
                                 mean_r_resid=None if k == "time" else round(float(np.mean([r[k].get("r_resid") or 0.0 for r in rows])), 2)) for k in sets}
-        print("  %-3s mean: " % key + "  ".join("%s r=%+.2f rmse=%7.1f%s" % (
+        print("  %-4s mean: " % key + "  ".join("%s r=%+.2f rmse=%8.2f%s" % (
             k, summary[key][k]["mean_r"], summary[key][k]["mean_rmse"],
             "" if k == "time" else " resid r=%+.2f, lower rmse than time in %d of %d" % (summary[key][k]["mean_r_resid"], summary[key][k]["wins_over_time"], len(rows))) for k in sets))
 
     # ---- final models (all wells) -> predicted sections along the inline through each well ----
     final = {}
-    for key, _, _ in PROPS:
+    for key, _, _, _ in PROPS:
         for kind in sets:
             Xs, ys, gs = [], [], []
             for s in S:
                 ok = np.isfinite(s["y"][key]) & (s["tau"] > 0)
                 Xs.append(design(s, kind)[ok]); ys.append(s["y"][key][ok]); gs += [s["well"]["name"]] * int(ok.sum())
-            final[(key, kind)] = fit_with_cv(np.array(gs), np.concatenate(Xs), np.concatenate(ys))[0]
+            if len(set(gs)) >= 2:
+                final[(key, kind)] = fit_with_cv(np.array(gs), np.concatenate(Xs), np.concatenate(ys))[0]
     by_cube = {}
     for s in S:
         m = s["meta"]
@@ -300,16 +308,16 @@ def main(argv=None):
                    dxl=PATCH * m["xl_step"], n_x=n_x, t0=float(s["tf"][0]), dt=STEP_T * DT, n_t=len(s["tf"]), shift=s["shift"], grids={},
                    curves=curves.get(s["well"]["name"], {}), times=[round(float(v), 1) for v in s["tf"]])
         # the sea bed is taken flat at the well's sea-bed time along this line (it varies by a few ms in these cubes)
-        for key, _, _ in PROPS:
+        for key, _, _, nd in PROPS:
             for kind in sets:
-                if kind == "time":
+                if kind == "time" or (key, kind) not in final:
                     continue
                 g = np.stack([ridge_predict(final[(key, kind)], design(s, kind, cx=q)) for q in range(n_x)])   # (n_x, n_t)
                 g[:, s["tau"] <= 0] = np.nan
-                sec["grids"][key + ":" + kind] = [[None if not np.isfinite(v) else int(round(float(v))) for v in rowv] for rowv in g]
+                sec["grids"][key + ":" + kind] = [[None if not np.isfinite(v) else (int(round(float(v))) if nd == 0 else round(float(v), nd)) for v in rowv] for rowv in g]
         by_cube.setdefault(s["cdir"], []).append(sec)
     for cdir, secs in by_cube.items():
-        out = dict(sets=[k for k in sets if k != "time"], props=[dict(key=k, unit=u) for k, _, u in PROPS], sections=secs,
+        out = dict(sets=[k for k in sets if k != "time"], props=[dict(key=k, unit=u, decimals=nd) for k, _, u, nd in PROPS if k in summary], sections=secs,
                    table=[r for r in table if any(r["well"] == q["well"] for q in secs)], summary=summary,
                    note="Ridge regression on features of the inline through each well; curves are blind (the well was left out), "
                         "sections come from the model trained on all wells. Resolution about 32 ms by 16 traces.")

@@ -12,7 +12,7 @@
 'use strict';
 (function () {
   const $ = (id) => document.getElementById(id);
-  const TOP_COL = { no: '#c9d4d0', ho: '#ff9de1', gc: '#5dff8f', hd: '#5dff8f', l1: '#9fb0aa', l2: '#9fb0aa', ro: '#ffb000', sh: '#8fc7ff' };
+  const TOP_COL = { no: '#c9d4d0', ho: '#ff9de1', gc: '#5dff8f', hd: '#5dff8f', fs: '#e0b46a', ro: '#ffb000', sh: '#8fc7ff' };
   const GREEN = (k) => k === 'gc' || k === 'hd';              // the green clay: predicted top (gc) or the formation itself (hd)
   const HOR_COLS = ['#5dff8f', '#ffb000', '#ff9de1', '#8fc7ff', '#ffffff', '#ff6b6b'];
   const LOGS = { gr: ['Gamma ray', 'API'], vp: ['P velocity', 'm/s'], ai: ['Acoustic impedance', 'm/s·g/cm³'], rdep: ['Deep resistivity', 'Ω·m'],
@@ -117,6 +117,10 @@
     if (up) a = Math.max(a, up.twt - 60);
     if (up && lo) b = Math.min(b, lo.twt + 60);
     if (b - a < 250) { a = a0; b = Math.min(b0, a0 + 600); }    // little log over the clay: the first 600 ms that are logged
+    // nothing can be compared above the first sonic sample, so the window does not start far above it (this changes
+    // what is shown and named as the window, not the correlation: that only ever used samples with a synthetic)
+    const kF = L.ai ? L.ai.findIndex(fin) : -1;
+    if (kF >= 0 && L.t0 + kF * L.dt - 60 > a && L.t0 + kF * L.dt - 60 < b - 100) a = L.t0 + kF * L.dt - 60;
     return [a, b];
   }
   /** Best bulk shift between -40 and +40 ms inside the tie window. */
@@ -127,9 +131,11 @@
   }
 
   /* ---------- logs predicted from seismic (predict_logs.py) ---------- */
-  const PRED_NAME = { vp: 'P velocity', gr: 'Gamma ray', ai: 'Acoustic impedance' }, SET_NAME = { ncs: 'NCS foundation model', attr: 'classic attributes', time: 'time trend only' };
+  const PRED_NAME = { vp: 'P velocity', gr: 'Gamma ray', ai: 'Acoustic impedance', vpvs: 'Vp/Vs' }, PRED_SHORT = { vp: 'Vp', gr: 'GR', ai: 'AI', vpvs: 'Vp/Vs' }, SET_NAME = { ncs: 'NCS foundation model', attr: 'classic attributes', time: 'time trend only' };
   function predSection(il) { const P = W.pred; if (!P || !P.sections) return null; return P.sections.find((q) => Math.abs(q.il - il) < 1e-6) || null; }
   function predUnit(key) { const p = W.pred && W.pred.props.find((q) => q.key === key); return p ? p.unit : ''; }
+  /** A predicted value as text: whole numbers, except Vp/Vs. */
+  function predNum(key, v) { return key === 'vpvs' ? v.toFixed(2) : String(Math.round(v)); }
   /** The predicted section as a small image (one pixel per grid cell), cached per section, property and feature set. */
   function predImage(sec) {
     const key = W.predProp + ':' + W.predSet, g = sec.grids[key]; if (!g) return null;
@@ -156,7 +162,7 @@
     if (xb >= xa) ctx.drawImage(im.cv, xa, ya, xb - xa, yb - ya);
     else { ctx.translate(xa, 0); ctx.scale(-1, 1); ctx.drawImage(im.cv, 0, ya, xa - xb, yb - ya); }   // crossline numbers run right to left
     ctx.restore();
-    const txt = 'Predicted ' + PRED_NAME[W.predProp].toLowerCase() + ' from seismic (' + SET_NAME[W.predSet] + '): ' + Math.round(im.lo) + ' – ' + Math.round(im.hi) + ' ' + predUnit(W.predProp) + ', dark to light';
+    const txt = 'Predicted ' + (W.predProp === 'vpvs' ? 'Vp/Vs' : PRED_NAME[W.predProp].toLowerCase()) + ' from seismic (' + SET_NAME[W.predSet] + '): ' + predNum(W.predProp, im.lo) + ' – ' + predNum(W.predProp, im.hi) + ' ' + predUnit(W.predProp) + ', dark to light';
     ctx.font = '600 11px system-ui, sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
     const tw = ctx.measureText(txt).width; ctx.fillStyle = 'rgba(8,16,14,.85)'; ctx.fillRect(R.x + 4, R.y + 4, tw + 10, 17); ctx.fillStyle = '#fde725'; ctx.fillText(txt, R.x + 9, R.y + 7);
   }
@@ -168,10 +174,12 @@
     const sec = w && P.sections.find((q) => q.well === w.name);
     const row = w && P.table.find((r) => r.well === w.name && r.prop === W.predProp);
     let h = sec ? 'Shown on inline ' + sec.il + ' (the inline through ' + esc(w.name) + '). ' : 'This well has no logs to learn from. ';
+    if (!row && sec) h += 'This well has no ' + (W.predProp === 'vpvs' ? 'shear sonic log' : 'log of this kind') + ', so there is no blind test here: the colours come from the wells that have one. ';
     if (row && row[W.predSet]) {
       const m = row[W.predSet], t = row.time;
-      h += '<b>Blind test at ' + esc(w.name) + '</b> (the model never saw this well): correlation with the smoothed log ' + m.r.toFixed(2) + ', error ' + Math.round(m.rmse) + ' ' + esc(row.unit) +
-        '. The time trend alone, without any seismic: ' + t.r.toFixed(2) + ' and ' + Math.round(t.rmse) + ' ' + esc(row.unit) + '. ' +
+      const u = row.unit ? ' ' + esc(row.unit) : '';
+      h += '<b>Blind test at ' + esc(w.name) + '</b> (the model never saw this well): correlation with the smoothed log ' + m.r.toFixed(2) + ', error ' + predNum(row.prop, m.rmse) + u +
+        '. The time trend alone, without any seismic: ' + t.r.toFixed(2) + ' and ' + predNum(row.prop, t.rmse) + u + '. ' +
         (m.rmse < t.rmse ? 'Here the seismic lowers the error.' : 'Here the seismic does not beat the trend.') +
         (m.r_resid != null ? ' Of what the trend misses, the seismic part correlates ' + m.r_resid.toFixed(2) + '.' : '');
     }
@@ -285,7 +293,7 @@
     tracks.push(['ai', 'Impedance'], ['syn', 'Synthetic'], ['seis', 'Seismic'], ['lc', 'Fit']);
     const pSec = W.pred && W.pred.sections && W.pred.sections.find((q) => q.well === w.name), pKey = W.predProp === 'none' ? 'vp' : W.predProp;
     const pCur = pSec && pSec.curves[pKey] && pSec.curves[pKey][W.predSet] ? pSec.curves[pKey] : null;
-    if (pCur) tracks.push(['pred', 'Predicted ' + (pKey === 'gr' ? 'GR' : pKey === 'vp' ? 'Vp' : 'AI')]);
+    if (pCur) tracks.push(['pred', 'Predicted ' + (PRED_SHORT[pKey] || pKey)]);
     const tw = (cw - left - 6) / tracks.length;
     if (tw < 66) for (const tr of tracks) tr[1] = { 'Gamma ray': 'GR', Impedance: 'AI', Synthetic: 'Synth.' }[tr[1]] || tr[1].replace('Predicted ', 'Pred. ');
     ctx.textAlign = 'right'; ctx.textBaseline = 'middle'; ctx.strokeStyle = '#2b3a35';
@@ -384,8 +392,17 @@
     $('wl-corr').innerHTML = 'Correlation in the tie window (' + Math.round(wa + sh) + '–' + Math.round(wb + sh) + ' ms, shaded): <b>' + f2(c) + '</b> at a shift of ' + (sh > 0 ? '+' : '') + sh + ' ms' +
       (sh ? ' (' + f2(c0) + ' without the shift)' : '') + '. Over the whole log: ' + f2(cAll) + '. ' +
       (W.tied[w.name] ? 'The shift was chosen by correlation between −40 and +40 ms; a neighbouring cycle can score almost as well, so check that the tops land on sensible events. ' : '') +
+      measuredNote(w, sh, c) +
       (L.rho_gardner && L.rho_gardner.some(Boolean) ? 'Orange strip in the impedance track: density estimated from sonic (Gardner), not logged.' : '');
     const a = $('wl-win-a'), b = $('wl-win-b'); if (a && document.activeElement !== a) a.value = Math.round(wa + sh); if (b && document.activeElement !== b) b.value = Math.round(wb + sh);
+  }
+
+  /** For a well with a measured time-depth relation, which is never moved to fit: say what a shift would have given. */
+  function measuredNote(w, sh, c) {
+    if (w.td_kind !== 'checkshot' || sh !== 0) return '';
+    const bs = bestShift(w);
+    if (!fin(bs.corr) || bs.best === 0 || !(bs.corr > (fin(c) ? c : -1) + 0.05)) return 'The time–depth relation is measured and no shift improves the fit by more than 0.05. ';
+    return 'The time–depth relation is measured and is not moved to fit. A shift of ' + (bs.best > 0 ? '+' : '') + bs.best + ' ms would give ' + bs.corr.toFixed(2) + ': the seismic arrives ' + Math.abs(bs.best) + ' ms ' + (bs.best > 0 ? 'later' : 'earlier') + ' than the well predicts. ';
   }
 
   /* ---------- followed events, blind check and clay thickness map ---------- */

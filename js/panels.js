@@ -367,7 +367,7 @@ export function createPanels(app) {
     h += `<div class="verdict"><b>Not screened.</b> The atlas covers the Norwegian shelf and this well lies outside it, so it has no pressure window and no verdict. It is here for what can be seen in it on seismic.</div>`;
     h += `<div class="facts">${fact("Seismic cube", esc(c ? c.short || c.name : w.ds))}${fact("Time-depth", td)}${fact("Position", `${w.la.toFixed(4)}° N, ${w.lo.toFixed(4)}° E`)}</div>`;
     if (w.about) h += `<p class="small">${esc(w.about)}</p>`;
-    h += `<p class="small">Press <b>On seismic</b> above for the logs, the tops, the smectite samples and the well tie.</p>`;
+    h += `<p class="small">Press <b>On seismic</b> above for the logs, the tops and the well tie.</p>`;
     h += `<p class="small muted">${[w.logs, c && c.attribution, c && c.licence].filter(Boolean).map(esc).join(" · ")}</p>`;
     tracks?.destroy(); tracks = null;
     right.hidden = false; right.innerHTML = `<div class="detail">${h}</div>`;

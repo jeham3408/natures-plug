@@ -168,6 +168,17 @@ def test_vsp_listing_and_log_step(tmp_path):
  Measured Vertical Vertical   Offset    Slant V. time  Source - Vertical  Average
 """)
     assert prep_nini.read_vsp(str(p)) == [(320.0, 320.0, 282.2, 165.9), (500.0, 500.0, 462.2, 265.3)]
+    # the same kind of table as a spreadsheet (Nini-5): a level row holds eleven numbers, interval rows fewer
+    import openpyxl
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    for row in (["WELL:", "X"], ["Rec. No.", "D", "TVD", "Z", "X", "T", "TV", "TE", "TC", "AV.VEL", "RMS.VEL"],
+                [1, 200, 200, 158.2, 64.9, 0.0969, 0.0899, 0.003, 0.093, 1702, 1713], [20, 0.0108, 1852],
+                [2, 220, 220, 178.2, 65.2, 0.107, 0.1008, 0.003, 0.1038, 1716, 1727]):
+        ws.append(row)
+    wb.save(str(tmp_path / "vsp.xlsx"))
+    got = prep_nini.read_vsp_xlsx(str(tmp_path / "vsp.xlsx"))
+    assert [g[0] for g in got] == [200.0, 220.0] and got[0][3] == pytest.approx(93.0) and got[1][3] == pytest.approx(103.8)
     md = np.arange(1000.0, 1100.0, 0.5)
     gr = np.where(md < 1042.0, 90.0, 60.0)
     z, d = prep_nini.step_in(md, gr, 1020.0, 1060.0)

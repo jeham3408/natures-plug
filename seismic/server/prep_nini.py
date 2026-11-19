@@ -1,26 +1,31 @@
 #!/usr/bin/env python
-"""prep_nini.py - well Nini-4 (Danish North Sea) from open GEUS files, as a well file for prep_wells.py --extra.
+"""prep_nini.py - the Danish wells Nini-4 and Nini-5 from open GEUS files, as a well file for prep_wells.py --extra.
 
-    python prep_nini.py --las nini-4_schlumberger.las --dev nini-4_dev_version_1.0.las
-                        --vsp Nini-4_Computations.txt [--xrd Appendix_F_WP3_7_data.xlsx] --out nini_wells.json
+    python prep_nini.py --out nini_wells.json
+        [--nini4-las nini-4_schlumberger.las --nini4-dev nini-4_dev_version_1.0.las --nini4-vsp Nini-4_Computations.txt]
+        [--xrd Appendix_F_WP3_7_data.xlsx]
+        [--nini5-las nini-5_schlumberger.las --nini5-dev nini-5_dev_version_1.0.las --nini5-vsp "Nini-5 VSP Computations.xlsx"]
 
-Nini-4 is not a well of the atlas (it is Danish), but it is the one open well found where the Eocene green clay has a
-shear sonic log, a measured time-depth relation and measured smectite contents:
+The two wells are not in the atlas (they are Danish), but they are the open wells found where the Eocene clay of the
+Horda Formation has a shear sonic log and a measured time-depth relation, and Nini-4 also measured smectite contents:
 
-  logs          merged wireline logs of the free GEUS well package NINI-4 (gamma ray, compressional and shear sonic,
-                density, resistivity), 802 to 1875 m
-  time-depth    the rig-source vertical seismic profile of the same package (CGG, November 2002): 58 levels from 320
-                to 1880 m with vertical one-way time below mean sea level.  Measured, so the tie is never shifted.
-  position      wellhead and kelly bushing from the deviation file; the hole is vertical to within 10 m
-  smectite      X-ray diffraction on cuttings and core, GEUS Report 2022/31 (Schovsbo, Petersen, Weibel and Springer
-                2023, doi 10.22008/gpub/34666), Appendix F.  Read from the spreadsheet as published; the values stay
-                with the seismic server and are not copied into the repository (the report states no licence).
-  tops          NOT official tops.  The same report labels every sample with its formation; a boundary must lie between
-                the last sample of one unit and the first of the next.  Inside that bracket the largest step of the
-                gamma-ray log is taken; where the logs give no clear step the middle of the bracket is used.  Each top
-                carries its bracket.
+  logs          merged wireline logs of the free GEUS well packages NINI-4 and NINI-5 (gamma ray, compressional and
+                shear sonic, density, resistivity)
+  time-depth    the rig-source vertical seismic profile of each well: measured levels with vertical one-way time below
+                mean sea level, joined by straight lines.  Measured, so the tie is never shifted.  (The Nini-5 table is
+                an .xls file; convert it once with `soffice --headless --convert-to xlsx`.)
+  position      wellhead and kelly bushing from the deviation file; both holes are vertical to within 15 m
+  tops          the operator's lithostratigraphic tops, from the final well reports in the same packages (scanned;
+                read by OCR and checked: measured depth minus depth below sea level equals the kelly bushing height in
+                every row).  The reports also give a two-way time for each top, which is kept as a check on the
+                time-depth relation used here.
+  smectite      Nini-4 only: X-ray diffraction on cuttings and core, GEUS Report 2022/31 (Schovsbo, Petersen, Weibel and
+                Springer 2023, doi 10.22008/gpub/34666), Appendix F.  Read from the spreadsheet as published; the
+                values stay with the seismic server and are not copied into the repository (the report states no
+                licence).  Its formation labels are those of the report and follow a later lithostratigraphy than the
+                operator's tops.
 
-Standard library + numpy (+ openpyxl for --xrd).  Depths are metres below the kelly bushing.
+Standard library + numpy (+ openpyxl for the spreadsheets).  Depths are metres below the kelly bushing.
 """
 from __future__ import annotations
 
@@ -31,9 +36,23 @@ import numpy as np
 
 V_WATER = 1480.0
 
+# Lithostratigraphic tops as the operator reported them: (name, key for the app, metres below the kelly bushing,
+# two-way time in ms below mean sea level as printed in the report, or None).
+TOPS = {
+    "Nini-4": dict(
+        source="Final well report Nini-4 and Nini-4A, DONG E&P, 1 July 2003 (GEUS file 25314), table 7.2",
+        tops=[("Top Nordland Gp (sea bed)", "no", 96.8, None), ("Top Hordaland Gp", "ho", 509.6, 539.6),
+              ("Top Horda Fm", "hd", 1701.8, 1592.0), ("Top Frigg Sand", "fs", 1771.9, 1663.8),
+              ("Top Rogaland Gp (Balder Fm)", "ro", 1784.8, 1666.0), ("Top Chalk Gp", "sh", 1856.9, 1724.7)]),
+    "Nini-5": dict(
+        source="Final well report Nini-5, Nini-5A and Nini-5B, DONG Energy, 20 December 2007 (GEUS file 27397), table 3.6.4",
+        tops=[("Top Hordaland Gp (Lark Fm)", "ho", 447.0, None), ("Top Horda Fm", "hd", 1617.0, 1509.0),
+              ("Top Rogaland Gp (Balder Fm)", "ro", 1660.0, 1548.0), ("Top Chalk Gp", "sh", 1793.0, 1655.0)]),
+}
+
 
 def read_las(path):
-    """LAS 2.0 -> ({mnemonic: column}, data section header words).  Mnemonic = the text before the first dot."""
+    """LAS 2.0 -> {mnemonic: column}.  Mnemonic = the text before the first dot."""
     with open(path, errors="replace") as fh:
         lines = fh.read().split("\n")
     c0 = next(i for i, l in enumerate(lines) if l.startswith("~C"))
@@ -46,7 +65,7 @@ def read_las(path):
 
 
 def read_vsp(path):
-    """CGG 'Computations' listing -> rows (measured depth KB, vertical depth KB, vertical depth MSL, one-way ms below MSL)."""
+    """CGG 'Computations' listing of Nini-4 -> rows (measured depth KB, vertical depth KB, vertical depth MSL, one-way ms below MSL)."""
     rows = []
     with open(path, errors="replace") as fh:
         for line in fh:
@@ -58,6 +77,20 @@ def read_vsp(path):
             except ValueError:
                 continue
             rows.append((v[0], v[1], v[2], v[7]))
+    rows.sort()
+    return rows
+
+
+def read_vsp_xlsx(path):
+    """'Rig source VSP computations' sheet of Nini-5 -> the same rows.  A level row holds eleven numbers: receiver,
+    measured depth, vertical depth, depth below datum, offset, picked time, vertical time, datum correction, vertical
+    time from datum (s), average and RMS velocity."""
+    import openpyxl
+    rows = []
+    for r in openpyxl.load_workbook(path, data_only=True, read_only=True).worksheets[0].iter_rows(values_only=True):
+        v = [c for c in r if c is not None]
+        if len(v) == 11 and all(isinstance(c, (int, float)) for c in v):
+            rows.append((float(v[1]), float(v[2]), float(v[3]), 1000.0 * float(v[8])))
     rows.sort()
     return rows
 
@@ -99,24 +132,20 @@ def read_xrd(path, well="Nini-4"):
     return out
 
 
-def main(argv=None):
-    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--las", required=True)
-    ap.add_argument("--dev", required=True)
-    ap.add_argument("--vsp", required=True)
-    ap.add_argument("--xrd", default=None)
-    ap.add_argument("--water-depth", type=float, default=59.0, help="m; from the survey sheet of the VSP report (59)")
-    ap.add_argument("--out", required=True)
-    a = ap.parse_args(argv)
+def rnd(arr, nd):
+    return [None if not np.isfinite(v) else round(float(v), nd) for v in arr]
 
-    dev = read_las(a.dev)
+
+def build_well(name, las, dev, vsp, water_depth, field, about, vsp_about, package, xrd=None):
+    """One well of the output file, from its merged logs, its deviation file and its VSP levels."""
+    dev = read_las(dev)
     kb = -float(dev["TVD"][0])                                   # TVD is below sea level; the first row is the rotary table
     x, y = float(dev["UTMX"][0]), float(dev["UTMY"][0])
     drift = float(np.max(np.hypot(dev["UTMX"] - x, dev["UTMY"] - y)))
     stretch = float(np.max(np.abs(dev["MD"] - (dev["TVD"] + kb))))
-    seabed_md = kb + a.water_depth
+    seabed_md = kb + water_depth
 
-    logs = read_las(a.las)
+    logs = read_las(las)
     md = logs["DEPT"]
     dt = np.where((logs["DTCO"] > 40) & (logs["DTCO"] < 250), logs["DTCO"], np.nan)
     dts = np.where((logs["DTSM"] > 80) & (logs["DTSM"] < 800) & np.isfinite(dt), logs["DTSM"], np.nan)
@@ -124,83 +153,110 @@ def main(argv=None):
     gr, rt = logs["GR"], np.where(logs["RT"] > 0, logs["RT"], np.nan)
 
     # ---- time-depth: the measured levels, joined by straight lines -------------
-    vsp = read_vsp(a.vsp)
     if len(vsp) < 10:
-        raise SystemExit("prep_nini.py: fewer than 10 VSP levels read from %s" % a.vsp)
+        raise SystemExit("prep_nini.py: fewer than 10 VSP levels for %s" % name)
     z = np.array([r[0] for r in vsp])
     t2 = 2.0 * np.array([r[3] for r in vsp])
     if np.any(np.diff(z) <= 0) or np.any(np.diff(t2) <= 0):
-        raise SystemExit("prep_nini.py: the VSP levels are not increasing in depth and time")
-    v_last = 2000.0 * (z[-1] - z[-6]) / (t2[-1] - t2[-6])       # below the deepest level: the velocity of its last 50 m
+        raise SystemExit("prep_nini.py: the VSP levels of %s are not increasing in depth and time" % name)
+    v_last = 2000.0 * (z[-1] - z[-6]) / (t2[-1] - t2[-6])       # below the deepest level: the velocity over its last five intervals
     z_end = max(float(np.nanmax(md)), float(z[-1])) + 5.0
     td_md = np.concatenate([[kb, seabed_md], z, [z_end]])
-    td_twt = np.concatenate([[0.0, 2000.0 * a.water_depth / V_WATER], t2, [t2[-1] + 2000.0 * (z_end - z[-1]) / v_last]])
-    note = ("Rig-source vertical seismic profile of the well (CGG, November 2002, in the free GEUS well package): %d measured "
-            "levels from %.0f to %.0f m, times vertical and below mean sea level, joined by straight lines. Above the first "
-            "level only the sea bed (%.0f m of water at %.0f m/s) is used. Nothing is picked on the seismic and nothing is "
-            "shifted." % (len(vsp), z[0], z[-1], a.water_depth, V_WATER))
-
-    # ---- tops: brackets from the formation labels of the samples, placed with the gamma-ray log ----
-    xrd = read_xrd(a.xrd) if a.xrd else []
-    tops = []
-    if xrd:
-        def bracket(above, below):
-            up = [s["md_base"] for s in xrd if s["formation"] in above]
-            dn = [s["md_top"] for s in xrd if s["formation"] in below]
-            return (max(up), min(dn)) if up and dn else None
-
-        def add(name, key, br, use_log):
-            if br is None:
-                return
-            lo, hi = br
-            st = step_in(md, gr, lo, hi) if use_log else None
-            if st is not None and abs(st[1]) >= 15.0:
-                tops.append(dict(name=name, key=key, md=round(st[0], 1), bracket=[lo, hi], how="gamma-ray step of %+.0f API inside the bracket" % st[1]))
-            else:
-                tops.append(dict(name=name + " (approx.)", key=key, md=round(0.5 * (lo + hi), 1), bracket=[lo, hi], how="middle of the bracket"))
-        add("Top Lark Fm", "ho", bracket({"Nolde sand"}, {"Lark Fm L3"}), True)
-        add("Top Lark L2", "l2", bracket({"Lark Fm L3"}, {"Lark Fm L2"}), False)
-        add("Top Lark L1", "l1", bracket({"Lark Fm L2"}, {"Lark Fm L1"}), False)
-        add("Top Horda Fm", "hd", bracket({"Lark Fm L1"}, {"Horda"}), True)
-        add("Top Sele Fm", "ro", bracket({"Horda"}, {"Sele"}), False)
-
+    td_twt = np.concatenate([[0.0, 2000.0 * water_depth / V_WATER], t2, [t2[-1] + 2000.0 * (z_end - z[-1]) / v_last]])
     twt = lambda d: float(np.interp(d, td_md, td_twt))
-    points = [dict(s, md=round(0.5 * (s["md_top"] + s["md_base"]), 2), twt=round(twt(0.5 * (s["md_top"] + s["md_base"])), 1))
-              for s in xrd if s["smectite"] is not None]
+    note = ("Rig-source vertical seismic profile of the well (%s): %d measured levels from %.0f to %.0f m, times vertical and "
+            "below mean sea level, joined by straight lines. Above the first level only the sea bed (%.1f m of water at "
+            "%.0f m/s) is used. Nothing is picked on the seismic and nothing is shifted." % (vsp_about, len(vsp), z[0], z[-1], water_depth, V_WATER))
 
-    rnd = lambda arr, nd: [None if not np.isfinite(v) else round(float(v), nd) for v in arr]
-    keep = np.isfinite(gr) | np.isfinite(dt) | np.isfinite(rho)
-    keep &= md >= seabed_md
-    well = dict(
-        name="Nini-4", country="Denmark", field="Nini West", epsg=23031, x=x, y=y, kb=round(kb, 2), seabed_md=round(seabed_md, 2),
-        water_depth=a.water_depth,
-        about=("Danish well of 2002 on the Nini West oil field, studied as a CO2 store in Project Greensand. Shown because it has "
-               "what the open Norwegian wells in this app lack together: a shear sonic log, a vertical seismic profile and "
-               "smectite measured on samples of the Eocene clay (the Horda Formation, which GEUS describes as greenish grey to greyish green mudstone). "
-               "Vertical to within %.0f m; measured depth and vertical depth differ by at most %.1f m." % (drift, stretch)),
+    # ---- tops: the operator's, with the two-way time the report prints beside them as a check ----
+    tops, tops_about = [], None
+    if name in TOPS:
+        check = []
+        for label, key, top_md, t_report in TOPS[name]["tops"]:
+            top = dict(name=label, key=key, md=top_md)
+            if t_report is not None:
+                top["twt_report"] = t_report
+                check.append((key, twt(top_md) - t_report))
+            tops.append(top)
+        tops_about = "Tops as the operator reported them: %s." % TOPS[name]["source"]
+        if check:
+            near = [abs(c) for _, c in check if abs(c) <= 4.0]
+            far = [(k, c) for k, c in check if abs(c) > 4.0]
+            tops_about += (" The report prints a two-way time beside each top. The time-depth relation used here gives the same "
+                           "time to within %.1f ms for %d of these %d tops" % (max(near) if near else 0.0, len(near), len(check)))
+            tops_about += "." if not far else "; for %s it is %s." % (
+                " and ".join(next(t["name"] for t in tops if t["key"] == k) for k, _ in far),
+                " and ".join("%.0f ms %s" % (abs(c), "later" if c > 0 else "earlier") for _, c in far))
+        hd = next((t for t in tops if t["key"] == "hd"), None)
+        if hd is not None:
+            st = step_in(md, gr, hd["md"] - 15.0, hd["md"] + 15.0)
+            if st is not None:
+                print("%s: largest gamma-ray step within 15 m of the reported top of the Horda Formation (%.1f m): %+.0f API at %.1f m"
+                      % (name, hd["md"], st[1], st[0]))
+        for t in tops:
+            if t.get("twt_report") is not None:
+                print("%s: %-28s %7.1f m   report %7.1f ms   this time-depth relation %7.1f ms   %+5.1f" % (
+                    name, t["name"], t["md"], t["twt_report"], twt(t["md"]), twt(t["md"]) - t["twt_report"]))
+
+    points = [dict(s, md=round(0.5 * (s["md_top"] + s["md_base"]), 2), twt=round(twt(0.5 * (s["md_top"] + s["md_base"])), 1))
+              for s in (xrd or []) if s["smectite"] is not None]
+
+    keep = (np.isfinite(gr) | np.isfinite(dt) | np.isfinite(rho)) & (md >= seabed_md)
+    print("%s: KB %.1f m, wellhead (%.1f, %.1f), drift %.1f m, MD-TVD at most %.2f m; logs %.1f..%.1f m (sonic %d, shear %d, density %d); "
+          "VSP %d levels %.0f..%.0f m, two-way %.1f..%.1f ms" % (name, kb, x, y, drift, stretch, md[keep][0], md[keep][-1], np.isfinite(dt).sum(),
+                                                               np.isfinite(dts).sum(), np.isfinite(rho).sum(), len(vsp), z[0], z[-1], t2[0], t2[-1]))
+    return dict(
+        name=name, country="Denmark", field=field, epsg=23031, x=x, y=y, kb=round(kb, 2), seabed_md=round(seabed_md, 2),
+        water_depth=water_depth,
+        about=about + " Vertical to within %.0f m; measured depth and vertical depth differ by at most %.1f m." % (drift, stretch),
         md=rnd(md[keep], 3), curves=dict(gr=rnd(gr[keep], 2), dt=rnd(dt[keep], 3), dts=rnd(dts[keep], 3), rhob=rnd(rho[keep], 4), rdep=rnd(rt[keep], 4)),
         td=dict(kind="checkshot", label="Vertical seismic profile, %d measured levels" % len(vsp), md=rnd(td_md, 2), twt=rnd(td_twt, 2), note=note),
-        tops=tops, points=points,
+        tops=tops, tops_about=tops_about, points=points,
         points_about=("Smectite by X-ray diffraction on cuttings (depth interval) and core (one depth). GEUS Report 2022/31, "
-                      "Appendix F: Schovsbo, Petersen, Weibel and Springer 2023, doi 10.22008/gpub/34666."),
-        tops_about=("Not official tops. GEUS Report 2022/31 labels every sample with its formation; each top lies between the last "
-                    "sample of one unit and the first of the next, at the largest gamma-ray step in that bracket or, without a clear "
-                    "step, in its middle."),
-        log_source="Free GEUS well package NINI-4 (merged wireline logs), GEUS terms for free Danish subsurface data",
+                      "Appendix F: Schovsbo, Petersen, Weibel and Springer 2023, doi 10.22008/gpub/34666. The formation names "
+                      "are the report's and follow a later lithostratigraphy than the operator's tops above.") if points else None,
+        log_source="Free GEUS well package %s (merged wireline logs), GEUS terms for free Danish subsurface data" % package,
     )
-    res = dict(sources=["Nini-4 logs, deviation and vertical seismic profile: free well package NINI-4, Geological Survey of Denmark and Greenland (GEUS)",
-                        "Seismic: NODAB-97 3D (CGG 1997-1999), free seismic package of GEUS; both under GEUS's terms for free Danish subsurface data (2023-09-19)",
-                        "Smectite and formation labels: GEUS Report 2022/31, Schovsbo et al. 2023, doi 10.22008/gpub/34666"],
-               wells=[well])
+
+
+def main(argv=None):
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    for w in ("nini4", "nini5"):
+        ap.add_argument("--%s-las" % w, default=None)
+        ap.add_argument("--%s-dev" % w, default=None)
+        ap.add_argument("--%s-vsp" % w, default=None)
+    ap.add_argument("--xrd", default=None, help="Appendix_F_WP3_7_data.xlsx of GEUS Report 2022/31 (Nini-4 samples)")
+    ap.add_argument("--nini4-water-depth", type=float, default=59.0, help="m; survey sheet of the VSP report and GEUS well data summary (59.0)")
+    ap.add_argument("--nini5-water-depth", type=float, default=56.3, help="m; GEUS well data summary sheet (56.3)")
+    ap.add_argument("--out", required=True)
+    a = ap.parse_args(argv)
+
+    wells = []
+    if a.nini4_las:
+        wells.append(build_well(
+            "Nini-4", a.nini4_las, a.nini4_dev, read_vsp(a.nini4_vsp), a.nini4_water_depth, "Nini West",
+            "Danish appraisal well of 2002 on the Nini West oil field, studied as a CO2 store in Project Greensand. Shown because it "
+            "has what the open Norwegian wells in this app lack together: a shear sonic log, a vertical seismic profile and "
+            "smectite measured on samples of the Eocene clay (the Horda Formation, pale greenish grey claystone in the operator's "
+            "report).", "CGG, November 2002, in the free GEUS well package", "NINI-4", xrd=read_xrd(a.xrd) if a.xrd else None))
+    if a.nini5_las:
+        wells.append(build_well(
+            "Nini-5", a.nini5_las, a.nini5_dev, read_vsp_xlsx(a.nini5_vsp), a.nini5_water_depth, "Nini East",
+            "Danish appraisal well of 2007 on Nini East, 12 km north-east of Nini-4. It has a shear sonic log and a vertical seismic "
+            "profile, but no smectite samples. The rock-mechanics tests published for this well (SINTEF 2009, GEUS file 35990) were "
+            "made on Sele shale below the Horda Formation, not on the Horda clay.", "June 2007, in the free GEUS well package", "NINI-5"))
+    if not wells:
+        raise SystemExit("prep_nini.py: give the files of at least one well")
+    sources = ["Logs, deviation, vertical seismic profiles and final well reports: free well packages %s, Geological Survey of Denmark and "
+               "Greenland (GEUS)" % " and ".join("NINI-" + w["name"][-1] for w in wells),
+               "Seismic: NODAB-97 3D (CGG 1997-1999), free seismic package of GEUS; all under GEUS's terms for free Danish subsurface data (2023-09-19)"]
+    if any(w["points"] for w in wells):
+        sources.append("Smectite and the formation names of the samples: GEUS Report 2022/31, Schovsbo et al. 2023, doi 10.22008/gpub/34666")
     with open(a.out, "w") as fh:
-        json.dump(res, fh, separators=(",", ":"))
-    print("Nini-4: KB %.1f m, wellhead (%.1f, %.1f), drift %.1f m, MD-TVD at most %.2f m" % (kb, x, y, drift, stretch))
-    print("logs  : %d samples %.1f..%.1f m; sonic %d, shear %d, density %d" % (keep.sum(), md[keep][0], md[keep][-1], np.isfinite(dt).sum(), np.isfinite(dts).sum(), np.isfinite(rho).sum()))
-    print("VSP   : %d levels %.0f..%.0f m, two-way %.1f..%.1f ms; velocity used below the last level %.0f m/s" % (len(vsp), z[0], z[-1], t2[0], t2[-1], v_last))
-    for t in tops:
-        print("top   : %-24s %7.1f m  %7.1f ms  bracket %s  (%s)" % (t["name"], t["md"], twt(t["md"]), t["bracket"], t["how"]))
-    for p in points:
-        print("xrd   : %-8s %-18s %7.1f-%7.1f m  %6.1f ms  smectite %5.1f %%  clay %5.1f %%" % (p["material"], p["formation"], p["md_top"], p["md_base"], p["twt"], p["smectite"], p["clay"] or float("nan")))
+        json.dump(dict(sources=sources, wells=wells), fh, separators=(",", ":"))
+    for w in wells:
+        for p in w["points"]:
+            print("xrd   : %-8s %-18s %7.1f-%7.1f m  %6.1f ms  smectite %5.1f %%" % (p["material"], p["formation"], p["md_top"], p["md_base"], p["twt"], p["smectite"]))
     print("wrote", a.out)
 
 
