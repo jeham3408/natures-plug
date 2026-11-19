@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nature's Plug</title>
+<meta name="description" content="An open atlas of where the overburden clay on the Norwegian continental shelf can seal a well by itself, with the wells shown on open 3D seismic.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230b7a57'/%3E%3Crect x='13' y='4' width='6' height='24' fill='%23fff'/%3E%3Cpath d='M4 10h9v12H4zM19 10h9v12h-9z' fill='%238fe0c0'/%3E%3C/svg%3E">
+<style>
+  /* The shell of the one-page app: one bar, and the atlas, the Green Clay predictor and the seismic viewer as views
+     of the same page. Each view is its own document (atlas.html, greenclay/, seismic/) kept alive in a frame, so
+     switching is instant and nothing is reloaded; they talk to each other through this page (see the script). */
+  :root { --bg: #0a1412; --bar: #111c19; --ink: #e8efec; --ink-2: #c5d0cb; --muted: #93a19b; --line: #2b3a35; --accent: #2fcb93; --accent-soft: #143329; --warm: #f0703a; }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body { display: flex; flex-direction: column; background: var(--bg); color: var(--ink); font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
+  .bar { flex: none; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 6px max(12px, env(safe-area-inset-right, 0px)) 6px max(12px, env(safe-area-inset-left, 0px)); background: var(--bar); border-bottom: 1px solid var(--line); }
+  .brand { display: flex; align-items: center; gap: 9px; margin-right: 6px; }
+  .brand svg { width: 26px; height: 26px; flex: none; }
+  .brand b { font-size: 15px; letter-spacing: .01em; white-space: nowrap; }
+  .tabs { display: flex; gap: 4px; flex-wrap: wrap; }
+  .tabs button { font: inherit; color: var(--ink-2); background: transparent; border: 1px solid transparent; border-radius: 7px; padding: 6px 12px; cursor: pointer; white-space: nowrap; }
+  .tabs button:hover { color: var(--ink); border-color: var(--line); }
+  .tabs button[aria-selected="true"] { color: var(--ink); background: var(--accent-soft); border-color: var(--accent); font-weight: 600; }
+  .tabs button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .status { margin-left: auto; display: flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--muted); white-space: nowrap; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); flex: none; }
+  .dot.on { background: var(--accent); } .dot.off { background: var(--warm); }
+  .views { flex: 1; min-height: 0; display: flex; }
+  .views iframe { flex: 1 1 0; min-width: 0; width: 100%; height: 100%; border: 0; background: var(--bg); }
+  .views iframe[hidden] { display: none; }
+  body[data-view="split"] #f-atlas { flex: 0 0 42%; border-right: 2px solid var(--line); }
+  @media (max-width: 900px) {
+    body[data-view="split"] .views { flex-direction: column; }
+    body[data-view="split"] #f-atlas { flex: 0 0 45%; border-right: 0; border-bottom: 2px solid var(--line); }
+    .status span { display: none; }
+  }
+</style>
+</head>
+<body data-view="atlas">
+<header class="bar">
+  <div class="brand">
+    <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#0b7a57"/><rect x="13" y="4" width="6" height="24" fill="#fff"/><path d="M4 10h9v12H4zM19 10h9v12h-9z" fill="#8fe0c0"/></svg>
+    <b>Nature's Plug</b>
+  </div>
+  <div class="tabs" role="tablist" aria-label="Views">
+    <button type="button" role="tab" data-view="atlas" aria-selected="true" title="Map of the wells left to plug and the clay screening">Atlas</button>
+    <button type="button" role="tab" data-view="split" aria-selected="false" title="Atlas and seismic side by side: choosing a well in one shows it in the other">Atlas + seismic</button>
+    <button type="button" role="tab" data-view="seismic" aria-selected="false" title="Sections, 3D view, logs on seismic, well tie and followed events">Seismic and 3D</button>
+    <button type="button" role="tab" data-view="greenclay" aria-selected="false" title="Where the top of the Green Clay sits, predicted from well reports">Green Clay</button>
+  </div>
+  <div class="status" id="status" title="The seismic view needs its server (./start.sh). The atlas and the Green Clay predictor work without it."><i class="dot" id="dot"></i><span id="status-text">Checking the seismic server…</span></div>
+</header>
+<main class="views">
+  <iframe id="f-atlas" title="Atlas" src="about:blank"></iframe>
+  <iframe id="f-seismic" title="Seismic and 3D" hidden></iframe>
+  <iframe id="f-greenclay" title="Green Clay predictor" hidden></iframe>
+</main>
+<noscript><p style="padding:16px">This app needs JavaScript. The atlas alone is at <a href="atlas.html" style="color:#2fcb93">atlas.html</a>.</p></noscript>
+<script>
+(function () {
+  'use strict';
+  var $ = function (id) { return document.getElementById(id); };
+  var F = { atlas: $('f-atlas'), seismic: $('f-seismic'), greenclay: $('f-greenclay') };
+  var view = 'atlas', atlasHash = '', seis = { loaded: false, ds: null, well: null }, seisWells = {};
+  var ATLAS_LINK = /^(well|wellbore|exploration|field)=(.+)$/;
+
+  function enc(h) { return encodeURIComponent(h).replace(/%3D/, '=').replace(/%2F/g, '/').replace(/%3A/g, ':'); }
+  function setHash() {
+    var h = view === 'atlas' ? atlasHash : view === 'seismic' ? 'seismic' + (seis.ds ? ':' + seis.ds + (seis.well ? ':' + seis.well : '') : '') : view;
+    try { history.replaceState(null, '', h ? '#' + enc(h) : location.pathname + location.search); } catch (e) { /* opened from disk */ }
+  }
+  function loadSeismic(ds, well) {
+    var q = [];
+    if (ds) q.push('ds=' + encodeURIComponent(ds));
+    if (well) q.push('well=' + encodeURIComponent(well));
+    F.seismic.src = 'seismic/' + (q.length ? '?' + q.join('&') : '');
+    seis.loaded = true; seis.ds = ds || seis.ds; seis.well = well || null;
+  }
+  /** Show a well in the seismic view: reload only when the cube changes. */
+  function seisGoto(ds, well) {
+    if (!seis.loaded || (ds && ds !== seis.ds)) return loadSeismic(ds, well);
+    seis.well = well;
+    try { F.seismic.contentWindow.postMessage({ np: 'goto-well', well: well }, location.origin); } catch (e) { loadSeismic(ds, well); }
+  }
+  function show(v) {
+    view = v; document.body.dataset.view = v;
+    F.atlas.hidden = !(v === 'atlas' || v === 'split');
+    F.seismic.hidden = !(v === 'seismic' || v === 'split');
+    F.greenclay.hidden = v !== 'greenclay';
+    if (!F.seismic.hidden && !seis.loaded) {
+      // open on the well chosen in the atlas when it lies inside a cube
+      var m = atlasHash.match(ATLAS_LINK), s = m && seisWells[m[2]];
+      loadSeismic(s ? s.ds : null, s ? m[2] : null);
+    }
+    if (v === 'greenclay' && !F.greenclay.getAttribute('src')) F.greenclay.src = 'greenclay/';
+    var tabs = document.querySelectorAll('.tabs button');
+    for (var i = 0; i < tabs.length; i++) tabs[i].setAttribute('aria-selected', String(tabs[i].dataset.view === v));
+    setHash();
+  }
+
+  // messages from the views (same origin only)
+  window.addEventListener('message', function (e) {
+    if (e.origin !== location.origin || !e.data || typeof e.data.np !== 'string') return;
+    var d = e.data, m;
+    if (d.np === 'atlas-select') {
+      atlasHash = d.hash || '';
+      m = atlasHash.match(ATLAS_LINK);
+      if (view === 'split' && m && seisWells[m[2]]) seisGoto(seisWells[m[2]].ds, m[2]);     // the same well on seismic
+      setHash();
+    } else if (d.np === 'open-seismic') {
+      if (view !== 'split') show('seismic');
+      seisGoto(d.ds, d.well); setHash();
+    } else if (d.np === 'open-atlas') {
+      atlasHash = d.hash || '';
+      try { F.atlas.contentWindow.location.hash = enc(atlasHash); } catch (err) { /* frame not ready */ }
+      if (view !== 'split') show('atlas'); else setHash();
+    } else if (d.np === 'seis-well') {
+      seis.ds = d.ds || seis.ds; seis.well = d.well;
+      if (view === 'split' && d.atlas) { atlasHash = d.atlas; try { F.atlas.contentWindow.location.hash = enc(d.atlas); } catch (err) { /* frame not ready */ } }
+      setHash();
+    }
+  });
+
+  var tabs = document.querySelectorAll('.tabs button');
+  for (var i = 0; i < tabs.length; i++) tabs[i].addEventListener('click', function () { show(this.dataset.view); });
+
+  /** Read the address: old deep links (#well=..., #field=...) open the atlas on that selection; #seismic:cube:well,
+   *  #split and #greenclay open those views. */
+  function readHash() {
+    var h = '';
+    try { h = decodeURIComponent(location.hash.slice(1)); } catch (e) { h = ''; }
+    var v = 'atlas', sm = h.match(/^seismic(?::([^:]+)(?::(.+))?)?$/), out = { view: 'atlas', atlas: null, ds: null, well: null };
+    if (ATLAS_LINK.test(h)) out.atlas = h;
+    else if (sm) { out.view = 'seismic'; out.ds = sm[1] || null; out.well = sm[2] || null; }
+    else if (h === 'split' || h === 'greenclay') out.view = h;
+    return out;
+  }
+  var start = readHash();
+  if (start.atlas) atlasHash = start.atlas;
+  F.atlas.src = 'atlas.html' + (atlasHash ? '#' + enc(atlasHash) : '');
+
+  fetch('data/seismic_wells.json').then(function (r) { return r.ok ? r.json() : {}; }).catch(function () { return {}; }).then(function (j) {
+    seisWells = j || {};
+    if (start.view === 'seismic' && start.ds) loadSeismic(start.ds, start.well);
+    show(start.view);
+  });
+  // a link followed or an address typed while the app is open (our own updates use replaceState and do not fire this)
+  window.addEventListener('hashchange', function () {
+    var q = readHash();
+    if (q.atlas) { atlasHash = q.atlas; try { F.atlas.contentWindow.location.hash = enc(q.atlas); } catch (e) { /* frame not ready */ } }
+    if (q.view === 'seismic' && q.ds) { show('seismic'); seisGoto(q.ds, q.well); setHash(); } else show(q.view);
+  });
+  fetch('seismic/api/health', { cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }).then(function (j) {
+    var ok = !!(j && j.ok);
+    $('dot').className = 'dot ' + (ok ? 'on' : 'off');
+    $('status-text').textContent = ok ? 'Seismic server connected' : 'Seismic server not running (start with ./start.sh)';
+  });
+})();
+</script>
+</body>
+</html>

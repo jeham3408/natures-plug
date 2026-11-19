@@ -1,0 +1,5 @@
+{
+  "private": true,
+  "type": "commonjs",
+  "description": "The seismic viewer page and its tests are classic scripts, not ES modules like the rest of the app."
+}

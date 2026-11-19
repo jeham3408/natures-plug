@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Nature’s Plug in 3D</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;600&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap">
+<link rel="stylesheet" href="talk.css">
+
+<div id="world"><canvas id="gl" aria-hidden="true"></canvas><div id="labels" aria-hidden="true"></div></div>
+<div id="scrim" aria-hidden="true"></div>
+
+<main id="deck">
+<div id="stage">
+
+<section class="slide" id="cover" data-title="Nature’s Plug" data-time="0:00 to 0:10">
+  <div class="col">
+    <p class="eyebrow">FORCE VibeCode Hackathon · Stavanger · November 2026</p>
+    <h1>Nature’s<br>Plug</h1>
+    <p class="lead">An open atlas of where the clay above the reservoir can seal a well by itself, and where it cannot.</p>
+    <p class="by">Jesper Hammersvik · Fredric Hegland</p>
+  </div>
+  <p class="hint"><span class="for-stage">Drag the scene to look around · <kbd>→</kbd> next · <kbd>N</kbd> notes · <kbd>H</kbd> all keys</span><span class="for-scroll">Scroll down for the next slide</span></p>
+  <aside class="notes">
+    <p class="do">Press T when you start talking: it starts the clock. Then → for every step.</p>
+    <p class="say">Hi, we are Jesper and Fredric. This is Nature’s Plug: an open atlas of where the clay above the reservoir can seal a well by itself, and where it cannot.</p>
+  </aside>
+</section>
+
+<section class="slide" id="problem" data-title="The problem" data-time="0:10 to 0:30">
+  <div class="col">
+    <h2>Plugging is over half the cost of shutdown</h2>
+    <div class="herobox">
+      <p class="hero" id="count-left">2,893</p>
+      <p class="lead">wellbores on the Norwegian shelf are not yet permanently plugged</p>
+    </div>
+    <div class="stats two">
+      <div><p class="num s">NOK 50 M to 1 bn+</p><p>is what one plugging operation has cost</p></div>
+      <div><p class="num s">78%</p><p>of the cost is carried by the State</p></div>
+    </div>
+    <p class="source">Sources: Norwegian Offshore Directorate, 13 November 2025 · FactPages, 17 November 2026. One slab in a column is one wellbore.</p>
+  </div>
+  <aside class="notes">
+    <p class="do">The columns rise by themselves. Let the counter finish.</p>
+    <p class="say">Every slab in these columns is one wellbore. 2,893 wellbores on the Norwegian shelf are not yet permanently plugged.</p>
+    <p class="say">Plugging is more than half the cost of shutting a field down. One operation has cost from 50 million to more than a billion kroner, and the State carries 78 percent.</p>
+  </aside>
+</section>
+
+<section class="slide" id="idea" data-title="The idea" data-time="0:30 to 0:52">
+  <div class="col">
+    <h2>Some clay closes the annulus by itself</h2>
+    <p class="lead">Soft clay above the reservoir creeps in around the casing and closes the gap without cement.</p>
+    <dl class="facts">
+      <div><dt>In use</dt><dd>A barrier element on the Norwegian shelf since 2006.</dd></div>
+      <div><dt>Rule of thumb</dt><dd>At least 30 m in one piece, and stronger than the reservoir pressure.</dd></div>
+      <div><dt>Missing</dt><dd>An open map of where it can work.</dd></div>
+    </dl>
+    <div class="ui row">
+      <button class="btn" id="creep-btn" type="button">Let the clay creep</button>
+      <label class="slider" for="creep"><span>Open</span><input type="range" id="creep" min="0" max="100" value="0" aria-label="How far the clay has moved in"><span>Closed</span></label>
+    </div>
+    <p class="source">Sources: Williams et al., SPE/IADC 119321 (2009) · Havtil / Reflekt AS, knowledge report on creeping shale, November 2025. The drawing is not to scale: the gap is a few centimetres wide.</p>
+  </div>
+  <aside class="notes">
+    <p class="say">Here is the idea. Above the cement, the space behind the steel casing is open, and gas can use it as a way up.</p>
+    <p class="do">Press → once: the clay moves in from the sides and closes the gap.</p>
+    <p class="say">But some clay is soft enough to move. Over time it creeps in from the sides and closes the gap by itself. Operators on the Norwegian shelf have used this as a barrier since 2006. What is missing is an open map of where it can work.</p>
+  </aside>
+</section>
+
+<section class="slide" id="built" data-title="What we built, and the demo" data-time="0:52 to 2:15">
+  <div class="col">
+    <h2>Nature’s Plug maps where the clay can seal</h2>
+    <p class="lead">Open data only. A static web app with no server and no build step.</p>
+    <div class="stats three">
+      <div><p class="num">117</p><p>wells with open logs, from the FORCE 2020 data set</p></div>
+      <div><p class="num">2,050</p><p>exploration wells with tops and leak-off tests</p></div>
+      <div><p class="num">2.75 M</p><p>pages of well reports, searched</p></div>
+    </div>
+    <div class="ui row">
+      <a class="btn" id="open-app" href="../" target="_blank" rel="noopener">Open the live app</a>
+      <span class="small">Live demo: press Tour in the app, six steps.</span>
+    </div>
+  </div>
+  <div class="shot3d ui" id="shot3d"><img src="img/app.jpg" width="1760" height="990" alt="The app: a map of the North Sea with every wellbore left to plug, and the log panel for well 35/11-7 at Fram, which passes with 150 m of clay"></div>
+  <aside class="notes">
+    <p class="say">So we built that map, from open data only: 117 wells with logs, 2,050 wells with formation tops and 2.75 million pages of well reports. Let us show you.</p>
+    <p class="do">Switch to the app tab (Ctrl+Tab) and press Tour. The arrow keys move between its six steps. Keep to about 15 seconds a step. No app tab open? Press D.</p>
+    <p class="say">1. Every dot is a wellbore left to plug. Green: the nearest well with logs passes our screen. Orange: it fails. Grey: no well close enough.</p>
+    <p class="say">2. Fram, well 35/11-7. The green band is clay with the right signature. The line is where the leak-off tests say the rock can hold the reservoir pressure. There are 150 metres of clay below that line, so it passes.</p>
+    <p class="say">3. Visund, well 34/8-1. More clay, 654 metres. But the reservoir pressure is higher, so the rock only holds from 2,375 metres, below the clay. It fails.</p>
+    <p class="say">4. Ula has no open logs nearby, so we fall back on formation tops. And the well’s own report from 2020 says the casing was logged for creeping shale.</p>
+    <p class="say">5. The five fields where Havtil says the method is in use all come out with the clay where the pressure holds. The screen was not told which they are.</p>
+    <p class="say">6. And every threshold is a slider.</p>
+    <p class="do">Switch back to this tab (Ctrl+Tab) and press →. If the app fails: press 9 and talk through slides 9 to 11, then press 5.</p>
+  </aside>
+</section>
+
+<section class="slide" id="result" data-title="The result" data-time="2:15 to 2:38">
+  <div class="col">
+    <h2><span id="res-head">663</span> wellbores sit near a well that passes</h2>
+    <p class="eyebrow" id="res-level">Log level · 117 wells with logs, 52 assessed</p>
+    <div class="legend" id="legend"></div>
+    <div class="ui controls">
+      <div class="seg" role="group" aria-label="Which level the map shows">
+        <button type="button" id="lv-log" class="on" aria-pressed="true">Wells with logs</button>
+        <button type="button" id="lv-fm" aria-pressed="false">Formation tops</button>
+      </div>
+      <label class="ctl" for="minlen"><span>Clay needed in one piece</span><input type="range" id="minlen" min="10" max="100" step="5" value="30"><output id="minlen-out" for="minlen">30 m</output></label>
+      <label class="ctl" for="radius"><span>Reach of a well with logs</span><input type="range" id="radius" min="5" max="30" step="1" value="10"><output id="radius-out" for="radius">10 km</output></label>
+    </div>
+    <p class="small" id="res-note">Sixteen fields have at least one such wellbore, among them Troll, Grane, Johan Sverdrup, Balder and Brage.</p>
+  </div>
+  <aside class="notes">
+    <p class="say">The result. 663 wellbores sit within ten kilometres of a well that passes every test. Sixteen fields have at least one, among them Troll, Grane and Johan Sverdrup.</p>
+    <p class="do">Press → once: the length slider moves to 50 m and the map is recoloured.</p>
+    <p class="say">And it holds up. Ask for fifty metres of clay instead of thirty, and 663 becomes 605.</p>
+  </aside>
+</section>
+
+<section class="slide" id="greenclay" data-title="Built here: the Green Clay" data-time="2:38 to 3:05">
+  <div class="col mid">
+    <h2>Built here: the Green Clay,<br>in the operators’ own words</h2>
+    <div class="grid4">
+      <div><h3>485 wellbores name it</h3><p>On Troll, Oseberg, Brage and Visund the drillers call a swelling clay in the Hordaland Group the Green Clay.</p></div>
+      <div><h3>29 sites give its depth</h3><p>One fitted line finds its top on a field it has not seen within 55 m on average. A plain guess misses by 123 m.</p></div>
+      <div><h3>Where it sealed</h3><p>Veslefrikk: reported as a barrier element. Brage: confirmed on a log in 2009.</p></div>
+      <div><h3 class="warn">Where it did not</h3><p>Visund: 792 m of it behind uncemented casing was assumed closed after two years. Total mud losses showed it was not.</p></div>
+    </div>
+    <p class="small">From 2.75 million pages of public well reports. Fifteen documented cases in all: against them the atlas flags both failures and misses most of the successes. Every number links to a file and a page in the app.</p>
+  </div>
+  <aside class="notes">
+    <p class="say">This part we built here in Stavanger. The operators have their own name for this clay: the Green Clay. 485 wellbores name it in public reports, and 29 sites give its depth.</p>
+    <p class="say">From those we fitted one line. On a field it has not seen, it finds the top within 55 metres on average.</p>
+    <p class="say">And the reports say where it worked. On Veslefrikk it is reported as a barrier. On Visund, 792 metres of it was assumed to have closed in after two years, and it had not.</p>
+  </aside>
+</section>
+
+<section class="slide" id="limits" data-title="What it does not do" data-time="3:05 to 3:37">
+  <div class="col mid">
+    <h2>It ranks where to look.<br>It does not verify a barrier.</h2>
+    <div class="grid4">
+      <div><h3>No bond logs</h3><p>Open data has none. A barrier is verified by logging the casing and pressure-testing the annulus.</p></div>
+      <div><h3>Mud weight, not measured pressure</h3><p>Mud weight overstates pore pressure. Measured values are in the well reports.</p></div>
+      <div><h3>Uncalibrated thresholds</h3><p>The clay signature is not yet checked against laboratory or field measurements.</p></div>
+      <div><h3>Judged by a neighbour</h3><p>A wellbore takes its result from an exploration well up to 10 km away, not from its own logs.</p></div>
+    </div>
+    <p class="small">The data pipeline, the first version of the app and these slides were prepared on 17 and 18 November, before the hackathon began. The Green Clay predictor and the list of documented cases were built here. All of it with AI coding assistance (Claude Code). Open data only.</p>
+  </div>
+  <aside class="notes">
+    <p class="say">To be straight about it: this ranks where to look. It does not verify a barrier. That takes a bond log and a pressure test of the annulus, and open data has neither.</p>
+    <p class="say">We use mud weight where we should use measured pressure, the thresholds are not calibrated, and each wellbore is judged by a neighbouring exploration well.</p>
+    <p class="say">The data pipeline and the first version were prepared before the hackathon started. The Green Clay part was built here. All of it with AI coding assistance.</p>
+  </aside>
+</section>
+
+<section class="slide" id="next" data-title="Next step" data-time="3:37 to 4:00">
+  <div class="col mid">
+    <h2>The well reports hold the next step</h2>
+    <div class="grid4 ui" id="next-grid">
+      <div><p class="eyebrow">1 · Measured pressure</p><p>Read formation pressure tests out of the reports and replace the mud-weight estimate.</p></div>
+      <div><p class="eyebrow">2 · Each wellbore on its own</p><p>Read cement tops and casing for the development wells, so no result is borrowed from a neighbour.</p></div>
+      <div><p class="eyebrow">3 · A bond log dropped in</p><p>Let an operator compare a real log with the prediction for the same well.</p></div>
+      <div id="next-co2"><p class="eyebrow co2">4 · Carbon storage</p><p>Run the same screen on old wells inside CO₂ storage licences. They are the blue outlines on the map.</p></div>
+    </div>
+    <div class="closing">
+      <p class="eyebrow dim">Code and data</p>
+      <p class="repo">github.com/[account]/natures-plug</p>
+      <p class="small">Open data · MIT licence · Jesper Hammersvik and Fredric Hegland</p>
+    </div>
+  </div>
+  <aside class="notes">
+    <p class="say">The next step is in the well reports: measured pressures and cement tops, so that each wellbore is judged on its own data.</p>
+    <p class="say">The blue outlines are CO₂ storage licences. The same screen can run on the old wells inside them. Everything here is open data and open code. Thank you.</p>
+    <p class="do">Before Friday: replace [account] in the link with the GitHub account the repository is published under. Slides 9 to 11 are backup for questions.</p>
+  </aside>
+</section>
+
+<section class="slide" id="method" data-title="Backup: the four tests" data-time="backup, about 25 seconds">
+  <div class="col">
+    <p class="eyebrow">Backup · the method</p>
+    <h2>The screen is four tests on open data</h2>
+    <div class="ui tests" id="tests">
+      <button type="button" class="test" data-step="0"><span class="tn">1 · Rock</span><b>Right clay?</b><span class="tx">Low resistivity, high gamma ray and slow sonic in the logs.</span><span class="mono">RDEP &lt; 1.3 Ω·m · GR &gt; 40 API · DT &gt; 135 µs/ft</span></button>
+      <button type="button" class="test" data-step="1"><span class="tn">2 · Pressure</span><b>Strong enough?</b><span class="tx">Leak-off tests give more than the reservoir pressure with gas up to that depth.</span><span class="mono">pore pressure = mud weight − 0.05 · gas 0.2 g/cm³</span></button>
+      <button type="button" class="test" data-step="2"><span class="tn">3 · Length</span><b>Long enough?</b><span class="tx">Rock and pressure hold together along the hole without a break.</span><span class="mono">at least 30 m · 50 m counts as strong</span></button>
+      <button type="button" class="test" data-step="3"><span class="tn">4 · Reach</span><b>Close enough?</b><span class="tx">A wellbore left to plug takes the result of the nearest assessed well.</span><span class="mono">within 10 km</span></button>
+    </div>
+    <p class="source">Every threshold is a slider in the app, and the map is recalculated at once. Pressure test after Williams et al., SPE/IADC 119321 (2009).</p>
+  </div>
+  <aside class="notes">
+    <p class="do">→ steps through the four tests on well 35/11-7 at Fram. The fourth moves to the map and shows how far every assessed well reaches.</p>
+    <p class="say">Four tests. One: the logs must show the clay signature: low resistivity, high gamma ray and slow sonic.</p>
+    <p class="say">Two: the leak-off tests must give more than the reservoir pressure, with a gas column up to that depth.</p>
+    <p class="say">Three: rock and pressure must hold together for at least 30 metres without a break.</p>
+    <p class="say">Four: a wellbore left to plug takes the result of the nearest assessed well within ten kilometres.</p>
+  </aside>
+</section>
+
+<section class="slide" id="contrast" data-title="Backup: Fram and Visund" data-time="backup, about 25 seconds">
+  <div class="col narrow">
+    <p class="eyebrow">Backup · two wells, one depth scale</p>
+    <h2>Fram passes and Visund fails</h2>
+    <div class="ui vcard" id="vc-fram">
+      <div class="vhead"><b>35/11-7 · Fram</b><span class="verdict" id="v-fram">Passes</span></div>
+      <p id="s-fram">150 m of clay lies below 1,120 m, where the rock holds the pressure.</p>
+      <label class="ctl" for="pp-fram"><span>Reservoir pressure</span><input type="range" id="pp-fram" min="0" max="1" step="1" value="0"><output id="pp-fram-out" for="pp-fram">1.18</output></label>
+    </div>
+    <div class="ui vcard" id="vc-visund">
+      <div class="vhead"><b>34/8-1 · Visund</b><span class="verdict" id="v-visund">Fails</span></div>
+      <p id="s-visund">654 m of clay lies above 2,375 m, where the rock starts to hold.</p>
+      <label class="ctl" for="pp-visund"><span>Reservoir pressure</span><input type="range" id="pp-visund" min="0" max="1" step="1" value="0"><output id="pp-visund-out" for="pp-visund">1.59</output></label>
+    </div>
+    <p class="small">Depths in metres along the hole, from the rig floor. Pressure as equivalent mud weight in g/cm³. Drag it to try another value, as in the app.</p>
+  </div>
+  <aside class="notes">
+    <p class="say">Two wells on the same depth scale. At Fram, 150 metres of clay lies below 1,120 metres, where the rock holds the pressure. It passes.</p>
+    <p class="say">Visund has more clay, 654 metres. But the reservoir pressure is higher, so the rock only starts to hold at 2,375 metres, below all of it. It fails.</p>
+    <p class="do">For questions: drag the reservoir pressure. Visund passes once the pressure is down at about 1.20.</p>
+  </aside>
+</section>
+
+<section class="slide" id="validation" data-title="Backup: the check" data-time="backup, about 25 seconds">
+  <div class="col">
+    <p class="eyebrow">Backup · the check</p>
+    <h2>The screen finds fields that already use it</h2>
+    <div class="ui meters" id="meters"></div>
+    <p class="small">Wellbores left to plug that have the clay group where the pressure holds, at formation level. Havtil’s 2025 report names these five fields as using creeping clay as a barrier. The screen was not told which they are.</p>
+    <p class="fact"><b>20 of 21</b> wells that pass on logs are also flagged by formation tops alone. So are 8 of the 31 that fail, which is why the logs are needed.</p>
+    <p class="fact"><b>About 2×</b> as many clay-specific words per kilometre drilled in the clay groups as in the groups below, in 2.75 million report pages.</p>
+    <p class="source">Source: Havtil / Reflekt AS, 25 November 2025</p>
+  </div>
+  <aside class="notes">
+    <p class="say">The check. Havtil names five fields with wells left where creeping shale is used as a barrier. At formation level all five come out with the clay where the pressure holds. The screen was not told which they are.</p>
+    <p class="say">The two levels also agree: 20 of the 21 wells that pass on logs are flagged by formation tops alone. And in 2.75 million pages of well reports, clay-specific words come up about twice as often per kilometre in these clay groups as in the groups below.</p>
+    <p class="do">Point at a field in the list to light it up on the map.</p>
+  </aside>
+</section>
+
+</div>
+</main>
+
+<div id="hud">
+  <span class="brand">Nature’s Plug</span>
+  <button type="button" class="hbtn" id="b-prev" aria-label="Back">‹</button>
+  <div class="dots" id="dots"></div>
+  <button type="button" class="hbtn" id="b-next" aria-label="Next">›</button>
+  <button type="button" class="hbtn clock" id="timer" title="Start or pause the clock (T). Shift+T sets it back to zero.">0:00</button>
+  <span id="pageno">1 / 10</span>
+  <button type="button" class="hbtn" id="b-notes" title="Speaker notes (N)">Notes</button>
+  <button type="button" class="hbtn" id="b-full" title="Full screen (F)">Full screen</button>
+  <button type="button" class="hbtn" id="b-help" title="All keys (H)">Keys</button>
+</div>
+
+<div id="tip" role="status" aria-live="polite"></div>
+
+<aside id="notes" aria-label="Speaker notes">
+  <header><span id="nt-no"></span><b id="nt-title"></b><button type="button" class="hbtn" id="nt-close">Close</button></header>
+  <p id="nt-time"></p>
+  <div id="nt-body"></div>
+  <p id="nt-next"></p>
+</aside>
+
+<div id="help" role="dialog" aria-label="Keys">
+  <div class="help-card">
+    <h3>Keys</h3>
+    <dl>
+      <div><dt><kbd>→</kbd> <kbd>Space</kbd> <kbd>Page Down</kbd></dt><dd>Next step, then next slide</dd></div>
+      <div><dt><kbd>←</kbd> <kbd>Page Up</kbd></dt><dd>Back</dd></div>
+      <div><dt><kbd>1</kbd> to <kbd>9</kbd>, <kbd>0</kbd></dt><dd>Jump to slide 1 to 9, or 10</dd></div>
+      <div><dt><kbd>T</kbd></dt><dd>Start or pause the clock. <kbd>Shift</kbd> <kbd>T</kbd> sets it back to zero</dd></div>
+      <div><dt><kbd>N</kbd></dt><dd>Speaker notes on this screen</dd></div>
+      <div><dt><kbd>P</kbd></dt><dd>Speaker notes in a second window, for a second screen</dd></div>
+      <div><dt><kbd>D</kbd></dt><dd>Open the live app in a new tab</dd></div>
+      <div><dt><kbd>F</kbd></dt><dd>Full screen</dd></div>
+      <div><dt><kbd>R</kbd></dt><dd>Put the 3D view back where it was</dd></div>
+      <div><dt>Mouse</dt><dd>Drag to look around, scroll to zoom, point at a column for its field</dd></div>
+    </dl>
+    <button type="button" class="btn ghost" id="help-close">Close</button>
+  </div>
+</div>
+
+<div id="pv">
+  <header><span id="pv-no"></span><b id="pv-title"></b><span id="pv-time"></span><span id="pv-clock">0:00</span></header>
+  <div id="pv-notes"></div>
+  <footer>
+    <button type="button" class="btn ghost" id="pv-prev">Back</button>
+    <button type="button" class="btn" id="pv-next">Next</button>
+    <button type="button" class="btn ghost" id="pv-timer">Start the clock</button>
+    <span id="pv-nexttitle"></span>
+  </footer>
+</div>
+
+<script src="data.js"></script>
+<script src="gl.js"></script>
+<script src="world.js"></script>
+<script src="deck.js"></script>

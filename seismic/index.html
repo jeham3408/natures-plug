@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Seismic viewer</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="style.css">
+<script>if (window.parent !== window) document.documentElement.classList.add("embedded");</script>
+</head>
+<body>
+
+<header class="top">
+  <nav class="np-nav" aria-label="Nature's Plug">
+    <a href="../">← Nature's Plug</a>
+    <a href="../greenclay/">Green Clay predictor</a>
+  </nav>
+  <div class="brand">
+    <svg class="logo" viewBox="0 0 32 32" aria-hidden="true">
+      <rect x="1" y="1" width="30" height="30" rx="7" fill="#16231f" stroke="#2b3a35"/>
+      <path d="M4 12 q4 -6 8 0 t8 0 t8 0" fill="none" stroke="#2fcb93" stroke-width="2"/>
+      <path d="M4 18 q4 -5 8 0 t8 0 t8 0" fill="none" stroke="#f0703a" stroke-width="2"/>
+      <path d="M4 24 q4 -4 8 0 t8 0 t8 0" fill="none" stroke="#93a19b" stroke-width="1.5"/>
+    </svg>
+    <div class="brand-text">
+      <h1 id="ds-name">Seismic viewer</h1>
+      <p id="ds-dims" class="muted">Loading survey description&hellip;</p>
+    </div>
+  </div>
+  <strong id="badge-synth" class="badge-warn" hidden><span aria-hidden="true">&#9888;</span> SYNTHETIC TEST CUBE</strong>
+  <p id="ds-attr" class="attr muted"></p>
+</header>
+
+<div class="layout">
+  <aside class="side" aria-label="Viewer controls">
+
+    <fieldset class="grp" id="wl-grp">
+      <legend>Cube and wells</legend>
+      <div class="ctl"><label for="wl-ds">Seismic cube</label><select id="wl-ds"></select></div>
+      <div class="ctl"><label for="wl-well">Well</label>
+        <div class="row"><select id="wl-well"></select><button type="button" id="wl-goto" title="Move the cross-hair to this well">Go to</button><button type="button" id="wl-zoom" title="Zoom both sections to the overburden of this well">Overburden</button></div></div>
+      <div class="ctl"><label for="wl-log">Log drawn on the seismic</label>
+        <select id="wl-log">
+          <option value="gr">Gamma ray</option><option value="vp">P velocity (sonic)</option><option value="ai">Acoustic impedance</option>
+          <option value="rdep">Deep resistivity (log scale)</option><option value="rho_used">Density</option><option value="vpvs">Vp/Vs (where shear was logged)</option><option value="none">None</option>
+        </select></div>
+      <div class="ctl"><label for="wl-pred">Predicted from seismic (colour on the inline)</label>
+        <select id="wl-pred"><option value="none">None</option><option value="vp">P velocity</option><option value="ai">Acoustic impedance</option><option value="gr">Gamma ray</option></select>
+        <select id="wl-pred-set" aria-label="Features the prediction is made from"></select>
+        <p id="wl-pred-msg" class="wl-side-note"></p></div>
+      <label class="chk"><input type="checkbox" id="wl-tops" checked> Group tops and predicted Green Clay top</label>
+      <button type="button" id="wl-open" class="wide" aria-expanded="false">Well tie and clay map…</button>
+      <button type="button" id="v3-toggle" class="wide alt" aria-pressed="false">3D view: off</button>
+    </fieldset>
+
+    <fieldset class="grp">
+      <legend>Position</legend>
+
+      <div class="ctl">
+        <label for="il-num">Inline</label>
+        <div class="row">
+          <button type="button" class="step" id="il-prev" aria-label="Previous inline" title="Previous inline">&#8249;</button>
+          <input type="range" id="il-rng" aria-label="Inline (slider)">
+          <button type="button" class="step" id="il-next" aria-label="Next inline" title="Next inline">&#8250;</button>
+          <input type="number" id="il-num" class="num" inputmode="numeric">
+        </div>
+      </div>
+
+      <div class="ctl">
+        <label for="xl-num">Crossline</label>
+        <div class="row">
+          <button type="button" class="step" id="xl-prev" aria-label="Previous crossline" title="Previous crossline">&#8249;</button>
+          <input type="range" id="xl-rng" aria-label="Crossline (slider)">
+          <button type="button" class="step" id="xl-next" aria-label="Next crossline" title="Next crossline">&#8250;</button>
+          <input type="number" id="xl-num" class="num" inputmode="numeric">
+        </div>
+      </div>
+
+      <div class="ctl">
+        <label for="t-num">Two-way time (ms)</label>
+        <div class="row">
+          <button type="button" class="step" id="t-prev" aria-label="Previous time sample (shallower)" title="Shallower">&#8249;</button>
+          <input type="range" id="t-rng" aria-label="Two-way time in ms (slider)">
+          <button type="button" class="step" id="t-next" aria-label="Next time sample (deeper)" title="Deeper">&#8250;</button>
+          <input type="number" id="t-num" class="num" inputmode="decimal">
+        </div>
+      </div>
+    </fieldset>
+
+    <fieldset class="grp">
+      <legend>Attribute (all three panels)</legend>
+      <div class="ctl">
+        <label for="attr" class="vh">Attribute shown in all three panels</label>
+        <select id="attr">
+          <option value="amp">Amplitude</option>
+          <option value="rms">RMS amplitude</option>
+          <option value="env">Envelope</option>
+          <option value="ifreq">Instantaneous frequency</option>
+          <option value="sd">Spectral decomposition</option>
+        </select>
+        <p id="attr-msg" class="hint" role="status" aria-live="polite"></p>
+      </div>
+      <div class="ctl inline-ctl" id="ctl-win" hidden>
+        <label for="win">RMS window length (ms)</label>
+        <input type="number" id="win" class="num" min="1" max="1000" step="1" value="100">
+      </div>
+      <div class="ctl" id="ctl-f0" hidden>
+        <label for="f0">Decomposition frequency (Hz)</label>
+        <div class="row">
+          <input type="range" id="f0-rng" min="5" max="100" step="1" value="30" aria-label="Decomposition frequency in Hz (slider)">
+          <input type="number" id="f0" class="num" min="5" max="100" step="1" value="30">
+        </div>
+      </div>
+    </fieldset>
+
+    <fieldset class="grp">
+      <legend>Band-pass filter</legend>
+      <label class="check"><input type="checkbox" id="bp-on"> <span>Apply band-pass</span></label>
+      <div class="pair">
+        <div class="ctl">
+          <label for="flo">Low corner (Hz)</label>
+          <input type="number" id="flo" class="num" min="0" step="1" value="5">
+        </div>
+        <div class="ctl">
+          <label for="fhi">High corner (Hz)</label>
+          <input type="number" id="fhi" class="num" min="0" step="1" value="60">
+        </div>
+      </div>
+      <div class="presets" role="group" aria-label="Band-pass presets">
+        <button type="button" class="preset" data-band="full">Full band</button>
+        <button type="button" class="preset" data-band="5,15">5-15 Hz</button>
+        <button type="button" class="preset" data-band="15,30">15-30 Hz</button>
+        <button type="button" class="preset" data-band="30,60">30-60 Hz</button>
+      </div>
+      <p id="bp-msg" class="msg" role="status" aria-live="polite"></p>
+    </fieldset>
+
+    <fieldset class="grp">
+      <legend>Display</legend>
+      <div class="ctl">
+        <label for="cmap">Colour map</label>
+        <select id="cmap"></select>
+      </div>
+      <label class="check" id="pol-wrap"><input type="checkbox" id="pol"> <span>Flip polarity (signed data)</span></label>
+      <div class="ctl">
+        <label for="gain">Gain <output id="gain-out" for="gain" class="num">1.00&times;</output></label>
+        <div class="row">
+          <input type="range" id="gain" min="-2" max="3" step="0.05" value="0" aria-describedby="gain-help">
+          <button type="button" class="mini" id="gain-reset" title="Reset gain to 1x">1&times;</button>
+        </div>
+        <p id="gain-help" class="hint">Display only, no new request. The colour bar shows the resulting limits.</p>
+      </div>
+    </fieldset>
+
+    <fieldset class="grp">
+      <legend>Amplitude spectrum</legend>
+      <div class="spec-wrap"><canvas id="spec" role="img" aria-label="Mean amplitude spectrum of the inline section window"></canvas></div>
+      <p class="legend">
+        <span class="sw sw-raw" aria-hidden="true"></span> raw (dashed)
+        <span class="sw sw-fil" aria-hidden="true"></span> band-passed (solid)
+        <span id="leg-sd" hidden><span class="sw sw-sd" aria-hidden="true"></span> decomposition band, &minus;6 dB (shaded)</span>
+      </p>
+      <p id="spec-msg" class="hint">Mean spectrum of the traces in the inline section window.</p>
+    </fieldset>
+
+    <details class="grp info">
+      <summary>Survey details</summary>
+      <dl id="survey-dl"></dl>
+      <pre id="text-header" tabindex="0" aria-label="SEG-Y textual header"></pre>
+    </details>
+
+    <p class="hint help">
+      <b>Mouse:</b> click or drag in a panel to move the cross-hair. Hold <kbd>Shift</kbd> and drag to zoom into a rectangle.
+      Double-click, or press &ldquo;Reset zoom&rdquo;, to see the full extent. Arrow keys step a focused slider.
+    </p>
+  </aside>
+
+  <main class="main" id="main">
+
+    <section class="panel" id="p-3d" aria-labelledby="p-3d-title" hidden>
+      <header class="p-head v3-head">
+        <h2 id="p-3d-title"><span class="p-main">3D view</span> <span class="p-sub">drag to turn · wheel to zoom · shift-drag to move · click a section to move the cross-hair</span></h2>
+        <label class="v3-chk"><input type="checkbox" id="v3-il" checked> Inline</label>
+        <label class="v3-chk"><input type="checkbox" id="v3-xl" checked> Crossline</label>
+        <label class="v3-chk"><input type="checkbox" id="v3-map" checked> Time slice</label>
+        <label class="v3-chk"><input type="checkbox" id="v3-wells" checked> Wells</label>
+        <label class="v3-chk"><input type="checkbox" id="v3-hor" checked> Followed events</label>
+        <label class="v3-chk" for="v3-ve">Vertical</label><input type="range" id="v3-ve" min="1" max="20" step="1" value="10"><output id="v3-ve-out" class="num">10×</output>
+        <button type="button" class="mini" id="v3-reset">Reset view</button>
+      </header>
+      <div class="p-body">
+        <canvas id="v3-gl" role="img" aria-label="3D view of the inline, the crossline, the time slice, the wells and the followed events"></canvas>
+        <canvas id="v3-ov" aria-hidden="true"></canvas>
+      </div>
+      <p class="p-read" id="v3-note"></p>
+    </section>
+
+    <section class="panel" id="p-il" aria-labelledby="p-il-title">
+      <header class="p-head">
+        <h2 id="p-il-title"><span class="p-main">Inline</span> <span class="p-sub"></span></h2>
+        <span class="p-status" role="status"><span class="spinner" hidden></span><span class="p-load"></span><span class="p-time num"></span></span>
+        <button type="button" class="mini p-reset" disabled>Reset zoom</button>
+      </header>
+      <div class="p-body">
+        <canvas role="img" aria-label="Inline section"></canvas>
+        <div class="p-error" hidden><p></p><button type="button" class="mini">Retry</button></div>
+      </div>
+      <p class="p-read num" aria-live="off"></p>
+    </section>
+
+    <section class="panel" id="p-xl" aria-labelledby="p-xl-title">
+      <header class="p-head">
+        <h2 id="p-xl-title"><span class="p-main">Crossline</span> <span class="p-sub"></span></h2>
+        <span class="p-status" role="status"><span class="spinner" hidden></span><span class="p-load"></span><span class="p-time num"></span></span>
+        <button type="button" class="mini p-reset" disabled>Reset zoom</button>
+      </header>
+      <div class="p-body">
+        <canvas role="img" aria-label="Crossline section"></canvas>
+        <div class="p-error" hidden><p></p><button type="button" class="mini">Retry</button></div>
+      </div>
+      <p class="p-read num" aria-live="off"></p>
+    </section>
+
+    <section class="panel" id="p-map" aria-labelledby="p-map-title">
+      <header class="p-head">
+        <h2 id="p-map-title"><span class="p-main">Time slice</span> <span class="p-sub"></span></h2>
+        <span class="p-status" role="status"><span class="spinner" hidden></span><span class="p-load"></span><span class="p-time num"></span></span>
+        <button type="button" class="mini p-reset" disabled>Reset zoom</button>
+      </header>
+      <div class="p-body">
+        <canvas role="img" aria-label="Time slice map"></canvas>
+        <div class="p-error" hidden><p></p><button type="button" class="mini">Retry</button></div>
+      </div>
+      <p class="p-read num" aria-live="off"></p>
+    </section>
+
+  </main>
+</div>
+
+<section id="wl-drawer" class="wl-drawer" aria-label="Well tie and clay map" hidden>
+  <header><h2>Well tie and clay map</h2><button type="button" id="wl-close" aria-label="Close">Close</button></header>
+  <div class="wl-body">
+    <div id="wl-info"></div>
+    <div class="wl-row">
+      <label for="wl-shift">Bulk shift of logs and tops</label>
+      <input type="range" id="wl-shift" min="-60" max="60" step="2" value="0"><output id="wl-shift-out">0 ms</output>
+      <button type="button" id="wl-shift-0">Zero</button><button type="button" id="wl-shift-best" title="The shift between -40 and +40 ms with the highest correlation inside the tie window">Best in window</button>
+    </div>
+    <div class="wl-row">
+      <label for="wl-wav">Wavelet</label>
+      <select id="wl-wav"><option value="ricker">Ricker</option><option value="seis">From the seismic around the well (zero phase)</option></select>
+      <input type="range" id="wl-f" min="10" max="60" step="1" value="25" aria-label="Ricker frequency"><output id="wl-f-out">25 Hz</output>
+    </div>
+    <div class="wl-row">
+      <label for="wl-ph">Phase</label>
+      <input type="range" id="wl-ph" min="-180" max="180" step="5" value="0"><output id="wl-ph-out">0°</output>
+      <label class="chk"><input type="checkbox" id="wl-pol"> Reverse polarity</label>
+    </div>
+    <div class="wl-row">
+      <label for="wl-win-a">Tie window (ms)</label>
+      <input type="number" id="wl-win-a" step="10" class="wl-num" aria-label="Tie window from"><span>to</span><input type="number" id="wl-win-b" step="10" class="wl-num" aria-label="Tie window to">
+      <button type="button" id="wl-win-clay">Clay interval</button><button type="button" id="wl-win-all">Whole log</button>
+    </div>
+    <canvas id="wl-tie" aria-label="Well tie: gamma ray, velocity, impedance, synthetic, seismic trace and local correlation against two-way time"></canvas>
+    <p id="wl-corr" class="wl-note"></p>
+
+    <h3>Follow the clay away from the well</h3>
+    <p class="wl-note">Press <b>Follow</b> on a top above: the nearest peak or trough is followed from the well through the whole cube. Or put the cross-hair on any event and press the button below. The tracker is simple and can jump a cycle across faults, so check the line on the sections.</p>
+    <div class="wl-row"><button type="button" id="wl-follow-here">Follow the event at the cross-hair</button><span id="wl-track-msg" class="wl-note"></span></div>
+    <div id="wl-hor"></div>
+    <div class="wl-row"><label for="wl-map-top">Thickness map from</label><select id="wl-map-top"></select><label for="wl-map-base">down to</label><select id="wl-map-base"></select></div>
+    <canvas id="wl-map" aria-label="Thickness map between two followed events"></canvas>
+    <div id="wl-map-msg" class="wl-note"></div>
+    <p id="wl-src" class="wl-note muted"></p>
+  </div>
+</section>
+
+<div id="fatal" class="fatal" role="alert" hidden>
+  <div class="fatal-card">
+    <h2>Cannot reach the viewer server</h2>
+    <p id="fatal-msg"></p>
+    <button type="button" id="fatal-retry">Try again</button>
+  </div>
+</div>
+
+<noscript><p class="noscript">This viewer needs JavaScript.</p></noscript>
+<script src="wells.js"></script>
+<script src="view3d.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

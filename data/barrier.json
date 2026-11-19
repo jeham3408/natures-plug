@@ -1,0 +1,515 @@
+{
+ "cases": [
+  {
+   "w": "30/3-A-20 A",
+   "area": "Veslefrikk",
+   "unit": "Green Clay (Hordaland Gp)",
+   "gc": 1,
+   "outcome": "used",
+   "how": "Reported as a barrier element after the cement job gave poor bonding",
+   "summary": "The cement above the Sele Formation bonded poorly. The completion report states that the green clay above Sele and the cement above the reservoir now act as barrier elements against the reservoir.",
+   "src": {
+    "w": "30/3-A-20 A",
+    "item": "WELLBORE_DOCUMENTS",
+    "file": "30_3-A-20 A__WELL__COMPLETION_REPORT_2.PDF",
+    "page": 40
+   },
+   "la": 60.782714,
+   "lo": 2.897822,
+   "field": "VESLEFRIKK",
+   "status": "PLUGGED",
+   "log": {
+    "cls": "fail",
+    "well": "30/3-5 S",
+    "km": 0
+   },
+   "fm": {
+    "cls": "absent",
+    "well": "30/3-7 A",
+    "km": 0
+   },
+   "gcm": {
+    "top": 1636,
+    "base": 1981,
+    "well": "30/3-4",
+    "km": 2.9
+   }
+  },
+  {
+   "w": "31/4-A-32 A",
+   "area": "Brage",
+   "unit": "Green Clay (Hordaland Gp)",
+   "gc": 1,
+   "outcome": "logged",
+   "how": "Ultrasonic and bond log run in 2009 to confirm the Green Clay as a barrier",
+   "summary": "The log found a very high content of solids in the annulus through the whole Green Clay interval (2,200 to 2,850 m along the hole) and further up, and suggests that other formations have also collapsed against the casing.",
+   "src": {
+    "w": "31/4-A-32 A",
+    "item": "WL_PROD",
+    "file": "31_4-A-32 A__WELL LOG__WL_PROD_AIMG-AC_2009-10-16_REPORT_1.PDF",
+    "page": 8
+   },
+   "la": 60.542617,
+   "lo": 3.047367,
+   "field": "BRAGE",
+   "status": "PLUGGED",
+   "log": {
+    "cls": "pass",
+    "well": "31/4-5",
+    "km": 1.9
+   },
+   "fm": {
+    "cls": "present",
+    "well": "31/4-5",
+    "km": 1.9
+   },
+   "gcm": {
+    "top": 1457,
+    "base": 1772,
+    "well": "31/4-5",
+    "km": 1.9
+   }
+  },
+  {
+   "w": "31/2-D-1 AH",
+   "area": "Troll",
+   "unit": "Green Clay (Hordaland Gp)",
+   "gc": 1,
+   "outcome": "planned",
+   "how": "Plugging programme that expects the seal and plans a log to check it",
+   "summary": "The programme says the Green Clay has collapsed around the 13 3/8 inch casing and made a seal on all but one well so far, and expects the same here. The result of the log is not in the open reports.",
+   "src": {
+    "w": "31/2-D-1 AH",
+    "item": "WELLBORE_DOCUMENTS",
+    "file": "31_2-D-1 AH__DRILLING__COMPLETION_WORKOVER_PROGRAMME_1.PDF",
+    "page": 22
+   },
+   "la": 60.867547,
+   "lo": 3.436708,
+   "field": "TROLL",
+   "status": "PLUGGED",
+   "log": {
+    "cls": "pass",
+    "well": "31/2-7",
+    "km": 1.4
+   },
+   "fm": {
+    "cls": "present",
+    "well": "31/2-14",
+    "km": 1.2
+   },
+   "gcm": {
+    "top": 1058,
+    "base": 1326,
+    "well": "31/2-14",
+    "km": 1.2
+   }
+  },
+  {
+   "w": "31/2-L-13 H",
+   "area": "Troll",
+   "unit": "Green Clay (Hordaland Gp)",
+   "gc": 1,
+   "outcome": "planned",
+   "how": "Pressure test to 32 bar through a cut in the casing to qualify the clay",
+   "summary": "The programme plans to pressure test through holes in the 13 3/8 inch casing to qualify the green clay as a barrier element, and lists at least 300 m of it in the barrier drawing. The result is not in the open reports.",
+   "src": {
+    "w": "31/2-L-13 H",
+    "item": "WELLBORE_DOCUMENTS",
+    "file": "31_2-L-13 H__DRILLING__DRILLING_PROGRAMME_2.PDF",
+    "page": 13
+   },
+   "la": 60.785089,
+   "lo": 3.556108,
+   "field": "TROLL",
+   "status": "PLUGGED",
+   "log": {
+    "cls": "fail",
+    "well": "31/2-1",
+    "km": 1.5
+   },
+   "fm": {
+    "cls": "present",
+    "well": "31/2-1",
+    "km": 1.5
+   },
+   "gcm": {
+    "top": 898,
+    "base": 1184,
+    "well": "31/2-1",
+    "km": 1.5
+   }
+  },
+  {
+   "w": "34/8-A-2 H",
+   "area": "Visund",
+   "unit": "Green Clay (Hordaland Gp)",
+   "gc": 1,
+   "outcome": "failed",
+   "how": "Total loss of mud while milling a window in uncemented casing",
+   "summary": "792 m of Green Clay lay open behind uncemented 13 3/8 inch casing. It was assumed to have collapsed around the casing in the two years since the casing was set, but total losses showed communication up to the 18 5/8 inch shoe.",
+   "src": {
+    "w": "34/8-A-2 H",
+    "item": "COMPLETION_REPORT",
+    "file": "34_8-A-2 H__WELL__COMPLETION_REPORT.PDF",
+    "page": 38
+   },
+   "la": 61.370222,
+   "lo": 2.459747,
+   "field": "VISUND",
+   "status": "PRODUCING",
+   "log": {
+    "cls": "fail",
+    "well": "34/8-1",
+    "km": 1.6
+   },
+   "fm": {
+    "cls": "absent",
+    "well": "34/8-18 S",
+    "km": 0
+   },
+   "gcm": {
+    "top": 1527,
+    "base": 1822,
+    "well": "34/8-11",
+    "km": 0.8
+   }
+  },
+  {
+   "w": "30/3-A-1",
+   "area": "Veslefrikk",
+   "unit": "Hordaland Gp",
+   "gc": 0,
+   "outcome": "logged",
+   "how": "Bond log from 1987 used in the plugging programme",
+   "summary": "The bond log shows very good formation bonding outside the 9 5/8 inch casing in the Hordaland Group from 1,566 to 1,962 m along the hole. The programme lists formation bonding as a barrier element to be verified by log.",
+   "src": {
+    "w": "30/3-A-1",
+    "item": "WELLBORE_DOCUMENTS",
+    "file": "30_3-A-1__DRILLING__COMPLETION_WORKOVER_PROGRAMME_1.PDF",
+    "page": 47
+   },
+   "la": 60.782728,
+   "lo": 2.897911,
+   "field": "VESLEFRIKK",
+   "status": "PLUGGED",
+   "log": {
+    "cls": "fail",
+    "well": "30/3-5 S",
+    "km": 0
+   },
+   "fm": {
+    "cls": "present",
+    "well": "30/3-5 S",
+    "km": 0
+   },
+   "gcm": {
+    "top": 1636,
+    "base": 1981,
+    "well": "30/3-4",
+    "km": 2.9
+   }
+  },
+  {
+   "w": "30/3-A-13",
+   "area": "Veslefrikk",
+   "unit": "Hordaland Gp",
+   "gc": 0,
+   "outcome": "planned",
+   "how": "Plugging programme with formation bonding as the first choice",
+   "summary": "The Sele Formation is to be plugged back inside the casing if a log finds enough formation bonding above it. The result is not in the open reports.",
+   "src": {
+    "w": "30/3-A-13",
+    "item": "WELLBORE_DOCUMENTS",
+    "file": "30_3-A-13__DRILLING__COMPLETION_WORKOVER_PROGRAMME_1.PDF",
+    "page": 24
+   },
+   "la": 60.782714,
+   "lo": 2.897822,
+   "field": "VESLEFRIKK",
+   "status": "PLUGGED",
+   "log": {
+    "cls": "fail",
+    "well": "30/3-5 S",
+    "km": 0
+   },
+   "fm": {
+    "cls": "absent",
+    "well": "30/3-7 A",
+    "km": 0
+   },
+   "gcm": {
+    "top": 1636,
+    "base": 1981,
+    "well": "30/3-4",
+    "km": 2.9
+   }
+  },
+  {
+   "w": "33/12-B-19 AT2",
+   "area": "Statfjord",
+   "unit": "Rogaland or Hordaland Gp above the Lista Fm",
+   "gc": 0,
+   "outcome": "used",
+   "how": "Ultrasonic and bond log during plugging",
+   "summary": "The log showed formation bonding good enough for permanent plugging against the Lista Formation, in two intervals. The interval was not pressure tested.",
+   "src": {
+    "w": "33/12-B-19 AT2",
+    "item": "WELLBORE_DOCUMENTS",
+    "file": "33_12-B-19 AT2__DRILLING__COMPLETION_WORKOVER_REPORT_1.PDF",
+    "page": 10
+   },
+   "la": 61.20695,
+   "lo": 1.831111,
+   "field": "STATFJORD",
+   "status": "PLUGGED",
+   "log": null,
+   "fm": null,
+   "gcm": {
+    "top": 1382,
+    "base": 1678,
+    "well": "33/12-2",
+    "km": 2.5
+   }
+  },
+  {
+   "w": "6506/12-P-1 H",
+   "area": "Åsgard",
+   "unit": "Shale above the Lysing and Nise formations",
+   "gc": 0,
+   "outcome": "logged",
+   "how": "Ultrasonic and bond log during plugging",
+   "summary": "80 m of formation collapse above the Lysing Formation and 126 m above the Nise Formation were confirmed by log and drawn as barrier elements.",
+   "src": {
+    "w": "6506/12-P-1 H",
+    "item": "WELLBORE_DOCUMENTS",
+    "file": "6506_12-P-1 H__DRILLING__COMPLETION_WORKOVER_PROGRAMME_1.PDF",
+    "page": 131
+   },
+   "la": 65.022956,
+   "lo": 6.879447,
+   "field": "ÅSGARD",
+   "status": "PLUGGED",
+   "log": null,
+   "fm": {
+    "cls": "absent",
+    "well": "6506/12-3",
+    "km": 0.6
+   },
+   "gcm": {
+    "top": 1987,
+    "base": 2214,
+    "well": "6506/12-3",
+    "km": 0.6
+   }
+  },
+  {
+   "w": "34/7-P-7",
+   "area": "Snorre",
+   "unit": "Shetland Gp",
+   "gc": 0,
+   "outcome": "used",
+   "how": "Leak test through a cut in the 9 5/8 inch casing",
+   "summary": "Another report states that the Shetland Group was qualified as a barrier in this well by leak testing through a cut in the casing at 3,100 m along the hole.",
+   "src": {
+    "w": "33/9-L-4 H",
+    "item": "WELLBORE_DOCUMENTS",
+    "file": "33_9-L-4 H__DRILLING__DRILLING_RECOMMENDATION_1.PDF",
+    "page": 10
+   },
+   "la": 61.449153,
+   "lo": 2.143564,
+   "field": "SNORRE",
+   "status": "PLUGGED",
+   "log": {
+    "cls": "fail",
+    "well": "34/7-13",
+    "km": 6.8
+   },
+   "fm": {
+    "cls": "absent",
+    "well": "34/7-6",
+    "km": 0.5
+   },
+   "gcm": {
+    "top": 1397,
+    "base": 1676,
+    "well": "34/7-6",
+    "km": 0.5
+   }
+  },
+  {
+   "w": "34/7-B-3 HT3",
+   "area": "Snorre",
+   "unit": "Hordaland Gp",
+   "gc": 0,
+   "outcome": "used",
+   "how": "Qualification cited by a later plugging programme",
+   "summary": "A later programme for a neighbouring well states that collapsed Hordaland formation was qualified as a barrier in this well.",
+   "src": {
+    "w": "34/7-I-5 BHT2",
+    "item": "WELLBORE_DOCUMENTS",
+    "file": "34_7-I-5 BHT2__DRILLING__COMPLETION_WORKOVER_PROGRAMME_1.PDF",
+    "page": 55
+   },
+   "la": 61.397092,
+   "lo": 2.117547,
+   "field": "VIGDIS",
+   "status": "PLUGGED",
+   "log": {
+    "cls": "fail",
+    "well": "34/7-13",
+    "km": 3.5
+   },
+   "fm": {
+    "cls": "absent",
+    "well": "34/7-16",
+    "km": 1.1
+   },
+   "gcm": {
+    "top": 1400,
+    "base": 1678,
+    "well": "34/7-16",
+    "km": 1.1
+   }
+  },
+  {
+   "w": "34/7-I-5 BHT2",
+   "area": "Snorre",
+   "unit": "Hordaland and Shetland Gp",
+   "gc": 0,
+   "outcome": "planned",
+   "how": "Plugging programme that relies on earlier qualifications",
+   "summary": "The programme plans to use collapsed Hordaland and Shetland formation as barriers if the logs show it, based on qualifications in two other Snorre wells. The result is not in the open reports.",
+   "src": {
+    "w": "34/7-I-5 BHT2",
+    "item": "WELLBORE_DOCUMENTS",
+    "file": "34_7-I-5 BHT2__DRILLING__COMPLETION_WORKOVER_PROGRAMME_1.PDF",
+    "page": 55
+   },
+   "la": 61.276456,
+   "lo": 2.117653,
+   "field": "TORDIS",
+   "status": "PLUGGED",
+   "log": {
+    "cls": "fail",
+    "well": "34/7-21",
+    "km": 3.1
+   },
+   "fm": {
+    "cls": "absent",
+    "well": "34/7-26 A",
+    "km": 0.2
+   },
+   "gcm": {
+    "top": 1363,
+    "base": 1644,
+    "well": "34/7-12",
+    "km": 0.6
+   }
+  },
+  {
+   "w": "34/4-C-4 HT2",
+   "area": "Snorre",
+   "unit": "Formation above the Lista Fm",
+   "gc": 0,
+   "outcome": "planned",
+   "how": "Plugging programme",
+   "summary": "The programme plans to log for collapsed formation behind the 13 3/8 inch casing and to test it as a barrier if it is there. The result is not in the open reports.",
+   "src": {
+    "w": "34/4-C-4 HT2",
+    "item": "WELLBORE_DOCUMENTS",
+    "file": "34_4-C-4 HT2__DRILLING__DRILLING_PROGRAMME_1.PDF",
+    "page": 7
+   },
+   "la": 61.525064,
+   "lo": 2.211386,
+   "field": "SNORRE",
+   "status": "PLUGGED",
+   "log": null,
+   "fm": {
+    "cls": "absent",
+    "well": "34/4-7",
+    "km": 2.4
+   },
+   "gcm": {
+    "top": 1436,
+    "base": 1700,
+    "well": "34/4-7",
+    "km": 2.4
+   }
+  },
+  {
+   "w": "33/9-L-4 H",
+   "area": "Statfjord Øst",
+   "unit": "Shetland Gp",
+   "gc": 0,
+   "outcome": "failed",
+   "how": "Bond log and risk register for the plugging",
+   "summary": "The well was chosen for a test of the Shetland Group as a barrier. The risk register records that the Shetland formation had not collapsed or that the log data were poor, and the bond log rates 2,170 to 2,246 m along the hole as poor with low potential for isolation.",
+   "src": {
+    "w": "33/9-L-4 H",
+    "item": "WELLBORE_DOCUMENTS",
+    "file": "33_9-L-4 H__DRILLING__DRILLING_RECOMMENDATION_1.PDF",
+    "page": 56
+   },
+   "la": 61.329297,
+   "lo": 1.9863,
+   "field": "STATFJORD ØST",
+   "status": "PLUGGED",
+   "log": {
+    "cls": "fail",
+    "well": "34/7-21",
+    "km": 6.1
+   },
+   "fm": {
+    "cls": "absent",
+    "well": "33/9-12",
+    "km": 1.1
+   },
+   "gcm": {
+    "top": 1363,
+    "base": 1651,
+    "well": "33/9-7",
+    "km": 0.8
+   }
+  },
+  {
+   "w": "33/9-D-3 H",
+   "area": "Statfjord Øst",
+   "unit": "Shetland Gp",
+   "gc": 0,
+   "outcome": "planned",
+   "how": "Study that depends on the test in 33/9-L-4 H",
+   "summary": "A study says the middle part of the Shetland Group can be qualified as a barrier from 2,181 m vertical depth if the test in 33/9-L-4 H is good.",
+   "src": {
+    "w": "33/9-D-3 H",
+    "item": "WELLBORE_DOCUMENTS",
+    "file": "33_9-D-3 H__DRILLING__DRILLING_RECOMMENDATION_1.PDF",
+    "page": 26
+   },
+   "la": 61.447317,
+   "lo": 1.9143,
+   "field": "SYGNA",
+   "status": "INJECTING",
+   "log": {
+    "cls": "fail",
+    "well": "34/7-13",
+    "km": 8.7
+   },
+   "fm": {
+    "cls": "absent",
+    "well": "33/9-14",
+    "km": 1.7
+   },
+   "gcm": {
+    "top": 1380,
+    "base": 1664,
+    "well": "33/9-8",
+    "km": 1
+   }
+  }
+ ],
+ "radiusKm": 10,
+ "minLen": 30
+}
