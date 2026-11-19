@@ -304,10 +304,8 @@ if (typeof document !== 'undefined') (function () {
   const DEBOUNCE_MS = 120, SETTLE_MS = 260, MAX_W = 1600, MAX_W_NOISY = 1100, MAX_T = 1024, DPR_CAP = 1.5, PNG_PIXELS = 150000;
   const HINT = 'Click or drag: move cross-hair. Shift-drag: zoom. Double-click: full extent.';
 
-  // which cube: index.html?ds=<id> (see /api/datasets); without it the server's first cube answers
-  const DS = (typeof location !== 'undefined') ? new URLSearchParams(location.search).get('ds') : null;
-  const API = 'api/' + (DS ? encodeURIComponent(DS) + '/' : '');
-  if (typeof window !== 'undefined') { window.SV_DS = DS; window.SV_API = API; }
+  // which cube is shown: set by loadCube(id) (ids from /api/datasets); its requests go to api/<id>/...
+  let DS = null, API = 'api/';
   let META = null, ORIENT = null;
   const S = { il: 0, xl: 0, t: 0, attr: 'amp', bp: false, flo: 5, fhi: 60, win: 100, f0: 30,
     cmS: 'seismic', cmU: 'viridis', pol: 1, gain: 1, zoom: { il: null, xl: null, map: null } };
@@ -470,6 +468,15 @@ if (typeof document !== 'undefined') (function () {
       this.elErr.hidden = false;
     }
     clearError() { this.error = null; this.elErr.hidden = true; }
+    /** Forget the image of the previous cube. */
+    reset() {
+      clearTimeout(this.timer); clearTimeout(this.sizeTimer); this.abort(); this.seq++;
+      this.img = null; this.shownBase = null; this.attempt = 0; this.liveDirty = false;
+      this.clearError(); this.setLoading(false);
+      this.elMain.textContent = this.key === 'il' ? 'Inline' : this.key === 'xl' ? 'Crossline' : 'Time slice';
+      this.elSub.textContent = ''; this.elTime.textContent = '';
+      this.draw();
+    }
     abort() {
       if (this.ctrl) { try { this.ctrl.abort(); } catch (e) { /* ignore */ } this.ctrl = null; }
       clearTimeout(this.retryTimer);
@@ -1016,39 +1023,34 @@ if (typeof document !== 'undefined') (function () {
   function recolorAll() { for (const k in P) P[k].recolor(); saveHash(); }
 
   /* ======================= Controls ======================= */
-  function initControls() {
+  /** Listeners, bound once. Whatever depends on the cube is read when the event fires. */
+  function bindControls() {
     for (const k of ['il', 'xl', 't']) {
-      const g = grid(k), rng = $(k + '-rng'), num = $(k + '-num');
-      for (const el of [rng, num]) { el.min = Math.min(g.first, gridLast(g)); el.max = Math.max(g.first, gridLast(g)); el.step = Math.abs(g.step); }
+      const rng = $(k + '-rng'), num = $(k + '-num');
       rng.addEventListener('input', () => setPos({ [k]: Number(rng.value) }, DEBOUNCE_MS, true));
       num.addEventListener('change', () => { const v = Number(num.value); if (num.value !== '' && Number.isFinite(v)) setPos({ [k]: v }, 0); else syncPos(); });
-      $(k + '-prev').addEventListener('click', () => setPos({ [k]: S[k] - Math.abs(g.step) }, DEBOUNCE_MS, true));
-      $(k + '-next').addEventListener('click', () => setPos({ [k]: S[k] + Math.abs(g.step) }, DEBOUNCE_MS, true));
+      $(k + '-prev').addEventListener('click', () => setPos({ [k]: S[k] - Math.abs(grid(k).step) }, DEBOUNCE_MS, true));
+      $(k + '-next').addEventListener('click', () => setPos({ [k]: S[k] + Math.abs(grid(k).step) }, DEBOUNCE_MS, true));
     }
-    const nyq = META.nyquist_hz;
 
     $('attr').addEventListener('change', () => { S.attr = $('attr').value; syncControls(); for (const k in P) P[k].invalidate(); refetchAll(0); });
 
-    $('win').min = fmtNum(3 * META.dt_ms); $('win').step = fmtNum(META.dt_ms);
     $('win').addEventListener('change', () => {
       const v = Number($('win').value);
       S.win = Number.isFinite(v) && $('win').value !== '' ? clamp(v, 3 * META.dt_ms, 1000) : S.win;
       syncControls(); for (const k in P) P[k].invalidate();
-      if (S.attr === 'rms') refetchAll(0); else saveHash();
+      if (S.attr === 'rms') refetchAll(0);
     });
 
-    const f0R = f0Range();                         // the server refuses frequencies it cannot decompose correctly
-    for (const el of [$('f0'), $('f0-rng')]) { el.min = f0R[0]; el.max = f0R[1]; }
-    S.f0 = clamp(S.f0, f0R[0], f0R[1]);
     const setF0 = (v, delay) => {
+      const f0R = f0Range();                       // the server refuses frequencies it cannot decompose correctly
       if (Number.isFinite(v)) S.f0 = clamp(v, f0R[0], f0R[1]);
       syncControls(); drawSpectrum();
-      if (S.attr === 'sd') refetchAll(delay); else saveHash();
+      if (S.attr === 'sd') refetchAll(delay);
     };
     $('f0').addEventListener('change', () => setF0($('f0').value === '' ? NaN : Number($('f0').value), 0));
     $('f0-rng').addEventListener('input', () => setF0(Number($('f0-rng').value), DEBOUNCE_MS));
 
-    $('flo').max = fmtNum(nyq); $('fhi').max = fmtNum(nyq);
     const bandChanged = () => {
       S.flo = $('flo').value === '' ? NaN : Number($('flo').value);
       S.fhi = $('fhi').value === '' ? NaN : Number($('fhi').value);
@@ -1058,6 +1060,7 @@ if (typeof document !== 'undefined') (function () {
     $('bp-on').addEventListener('change', () => { S.bp = $('bp-on').checked; applyBand(); });
     for (const b of document.querySelectorAll('.preset')) {
       b.addEventListener('click', () => {
+        const nyq = META.nyquist_hz;
         if (b.dataset.band === 'full') { S.bp = false; S.flo = 0; S.fhi = nyq; }
         else { const v = b.dataset.band.split(',').map(Number); S.bp = true; S.flo = v[0]; S.fhi = Math.min(v[1], nyq); }
         applyBand();
@@ -1068,7 +1071,20 @@ if (typeof document !== 'undefined') (function () {
     $('pol').addEventListener('change', () => { S.pol = $('pol').checked ? -1 : 1; recolorAll(); });
     $('gain').addEventListener('input', () => { S.gain = Math.pow(2, Number($('gain').value)); syncGain(); recolorAll(); });
     $('gain-reset').addEventListener('click', () => { S.gain = 1; syncGain(); recolorAll(); });
-    syncControls(); syncPos();
+  }
+  /** Limits of the inputs for the cube that is loaded now. */
+  function setRanges() {
+    for (const k of ['il', 'xl', 't']) {
+      const g = grid(k);
+      for (const el of [$(k + '-rng'), $(k + '-num')]) { el.min = Math.min(g.first, gridLast(g)); el.max = Math.max(g.first, gridLast(g)); el.step = Math.abs(g.step); }
+    }
+    const nyq = META.nyquist_hz, f0R = f0Range();
+    $('win').min = fmtNum(3 * META.dt_ms); $('win').step = fmtNum(META.dt_ms);
+    S.win = clamp(S.win, 3 * META.dt_ms, 1000);
+    for (const el of [$('f0'), $('f0-rng')]) { el.min = f0R[0]; el.max = f0R[1]; }
+    S.f0 = clamp(S.f0, f0R[0], f0R[1]);
+    $('flo').max = fmtNum(nyq); $('fhi').max = fmtNum(nyq);
+    if (Number.isFinite(S.fhi)) S.fhi = Math.min(S.fhi, nyq);
   }
 
   /** Validate the band-pass fields, show a message, and refetch when the effective filter changed. */
@@ -1247,56 +1263,13 @@ if (typeof document !== 'undefined') (function () {
     ctx.restore();
   }
 
-  /* ======================= location.hash ======================= */
-  let hashTimer = 0;
-  function saveHash() {
-    clearTimeout(hashTimer);
-    hashTimer = setTimeout(() => {
-      try {
-        const o = { il: S.il, xl: S.xl, t: S.t, attr: S.attr, bp: S.bp ? 1 : 0, flo: Number.isFinite(S.flo) ? S.flo : '', fhi: Number.isFinite(S.fhi) ? S.fhi : '',
-          win: S.win, f0: S.f0, cs: S.cmS, cu: S.cmU, pol: S.pol, gain: roundTo(S.gain, 4) };
-        const z = S.zoom;
-        if (z.il) o.zi = [z.il.xl[0], z.il.xl[1], z.il.t[0], z.il.t[1]].join(',');
-        if (z.xl) o.zx = [z.xl.il[0], z.xl.il[1], z.xl.t[0], z.xl.t[1]].join(',');
-        if (z.map) o.zm = [z.map.il[0], z.map.il[1], z.map.xl[0], z.map.xl[1]].join(',');
-        const str = '#' + Object.keys(o).map((k) => k + '=' + encodeURIComponent(o[k]).replace(/%2C/g, ',')).join('&');
-        if (str !== location.hash) history.replaceState(null, '', str);
-      } catch (e) { /* the hash is a convenience only */ }
-    }, 250);
-  }
-  function loadHash() {
-    try {
-      const h = location.hash.replace(/^#/, ''); if (!h) return;
-      const o = {};
-      for (const part of h.split('&')) { const i = part.indexOf('='); if (i > 0) o[decodeURIComponent(part.slice(0, i))] = decodeURIComponent(part.slice(i + 1)); }
-      const num = (k) => (o[k] != null && o[k] !== '' && Number.isFinite(Number(o[k]))) ? Number(o[k]) : null;
-      for (const k of ['il', 'xl', 't']) { const v = num(k); if (v != null) S[k] = snap(k, v); }
-      if (Object.prototype.hasOwnProperty.call(ATTR_NAME, o.attr)) S.attr = o.attr;   // not "in": that accepts "toString"
-      if (o.bp != null) S.bp = o.bp === '1';
-      if (num('flo') != null) S.flo = num('flo');
-      if (num('fhi') != null) S.fhi = num('fhi');
-      if (num('win') != null) S.win = clamp(num('win'), 3 * META.dt_ms, 1000);
-      if (num('f0') != null) { const r = f0Range(); S.f0 = clamp(num('f0'), r[0], r[1]); }
-      if (CMAPS_SIGNED.includes(o.cs)) S.cmS = o.cs;
-      if (CMAPS_UNSIGNED.includes(o.cu)) S.cmU = o.cu;
-      if (num('pol') != null) S.pol = num('pol') < 0 ? -1 : 1;
-      if (num('gain') != null) S.gain = clamp(num('gain'), 0.25, 8);
-      const zr = (str, ka, kb) => {
-        if (!str) return null;
-        const v = str.split(',').map(Number);
-        if (v.length !== 4 || v.some((x) => !Number.isFinite(x))) return null;
-        const ga = grid(ka), gb = grid(kb);
-        return { [ka]: snapRange(v[0], v[1], ga.first, ga.step, ga.n, 4), [kb]: snapRange(v[2], v[3], gb.first, gb.step, gb.n, 4) };
-      };
-      S.zoom.il = zr(o.zi, 'xl', 't'); S.zoom.xl = zr(o.zx, 'il', 't'); S.zoom.map = zr(o.zm, 'il', 'xl');
-    } catch (e) { /* ignore a malformed hash */ }
-  }
+  /* The viewer lives inside Nature's Plug, whose address holds the selected well, so the view is not written to it. */
+  function saveHash() {}
 
   /* ======================= Start-up ======================= */
   function fillHeader() {
     const M = META, gi = grid('il'), gx = grid('xl'), gt = grid('t');
     $('ds-name').textContent = M.name || 'Seismic cube';
-    document.title = (M.name || 'Seismic cube') + ' – seismic viewer';
     $('ds-dims').textContent = M.n_il + ' inlines (' + gi.first + '–' + gridLast(gi) + ', step ' + gi.step + ') × ' + M.n_xl + ' crosslines (' + gx.first + '–' + gridLast(gx) +
       ', step ' + gx.step + ') × ' + M.n_t + ' samples (' + fmtNum(gt.first) + '–' + fmtNum(gridLast(gt)) + ' ms TWT, ' + fmtNum(M.dt_ms) + ' ms)';
     $('badge-synth').hidden = !M.synthetic;
@@ -1324,42 +1297,61 @@ if (typeof document !== 'undefined') (function () {
     $('text-header').hidden = !(Array.isArray(M.textual_header) && M.textual_header.length);
   }
 
-  async function start() {
+  let booted = false, loadSeq = 0, wanted = null;
+  /** Show cube `ds` (an id from /api/datasets). Returns true when it is on screen. The first call builds the panels;
+   *  later calls only swap the data, so a well in another cube opens without reloading the page. */
+  async function loadCube(ds, force) {
+    wanted = ds;
+    if (ds === DS && META && !force) return true;
+    const seq = ++loadSeq, api = 'api/' + (ds ? encodeURIComponent(ds) + '/' : '');
     $('fatal').hidden = true;
     let meta;
     try {
-      const res = await fetch(API + 'meta', { cache: 'no-store' });
+      const res = await fetch(api + 'meta', { cache: 'no-store' });
       if (!res.ok) throw new Error('HTTP ' + res.status);
       meta = await res.json();
       for (const k of ['n_il', 'n_xl', 'n_t', 'il0', 'il_step', 'xl0', 'xl_step', 't0_ms', 'dt_ms']) if (!Number.isFinite(meta[k])) throw new Error('meta.json has no valid "' + k + '"');
     } catch (e) {
-      $('fatal-msg').textContent = 'Could not load the survey description (/api/meta): ' + (e && e.message ? e.message : e) + '. The seismic viewer needs its back end on the Linux PC: start the app with ./start.sh (not a plain static server).';
+      if (seq !== loadSeq) return false;
+      $('fatal-msg').textContent = 'The seismic server is not answering (' + (e && e.message ? e.message : e) + '). Seismic needs its Python back end and the cubes: start the app with ./start.sh. The map, the screening and the Green Clay layer work without it.';
       $('fatal').hidden = false;
-      return;
+      return false;
     }
+    if (seq !== loadSeq) return false;
     if (!Number.isFinite(meta.nyquist_hz)) meta.nyquist_hz = 500 / meta.dt_ms;
     if (!Array.isArray(meta.il_axis_m)) meta.il_axis_m = [0, 1];
     if (!Array.isArray(meta.xl_axis_m)) meta.xl_axis_m = [1, 0];
+    DS = ds; API = api; window.SV_DS = DS; window.SV_API = API;
     META = meta;
     ORIENT = mapOrientation(META.il_axis_m, META.xl_axis_m);
     const mid = (k) => { const g = grid(k); return g.first + Math.floor((g.n - 1) / 2) * g.step; };
     S.il = snap('il', mid('il')); S.xl = snap('xl', mid('xl')); S.t = snap('t', mid('t'));
-    S.fhi = Math.min(60, META.nyquist_hz);
-    loadHash();
-    lastBand = JSON.stringify(band());
+    S.zoom.il = S.zoom.xl = S.zoom.map = null;
+    if (!booted) S.fhi = Math.min(60, META.nyquist_hz);
     fillHeader();
-    for (const k of ['il', 'xl', 'map']) P[k] = new Panel(k);
-    initControls();
-    for (const k in P) { P[k].draw(); P[k].schedule(0); }
+    const first = !booted;
+    if (first) {
+      booted = true;
+      for (const k of ['il', 'xl', 'map']) P[k] = new Panel(k);
+      bindControls();
+      if (window.ResizeObserver) new ResizeObserver(drawSpectrum).observe($('spec').parentElement);
+      window.addEventListener('resize', () => { for (const k in P) P[k].resize(); drawSpectrum(); });
+      // what wells.js and view3d.js need: state, panels, the survey description of the cube shown now, and ways to
+      // move the cross-hair, redraw and change cube
+      window.SV = { S, P, get META() { return META; }, get ORIENT() { return ORIENT; }, get DS() { return DS; }, setPos, loadCube,
+        redraw() { for (const k in P) P[k].invalidate(); }, resizeAll() { for (const k in P) P[k].resize(); drawSpectrum(); } };
+      window.SV_DEBUG = { S, P, SPEC };                        // for inspection from the console
+    }
+    setRanges();
+    lastBand = JSON.stringify(band());
+    syncControls(); syncPos();
+    SPEC.data = null; SPEC.url = null; SPEC.error = null;
+    for (const k in P) { P[k].reset(); P[k].resize(); P[k].schedule(0); }
     scheduleSpectrum(50);
-    if (window.ResizeObserver) new ResizeObserver(drawSpectrum).observe($('spec').parentElement);
-    window.addEventListener('resize', () => { for (const k in P) P[k].resize(); drawSpectrum(); });
-    window.addEventListener('hashchange', () => { loadHash(); syncControls(); syncPos(); lastBand = JSON.stringify(band()); for (const k in P) P[k].recolor(); refetchAll(0); });
-    window.SV_DEBUG = { S, P, META, ORIENT, SPEC };            // for inspection from the console
-    // what wells.js needs: state, panels, survey description, and a way to move the cross-hair and redraw
-    window.SV = { S, P, META, ORIENT, setPos, redraw() { for (const k in P) P[k].invalidate(); } };
-    window.dispatchEvent(new Event('sv-ready'));
+    if (first) window.dispatchEvent(new Event('sv-ready'));
+    window.dispatchEvent(new CustomEvent('sv-cube', { detail: { ds: DS } }));
+    return true;
   }
-  $('fatal-retry').addEventListener('click', start);
-  start();
+  $('fatal-retry').addEventListener('click', () => loadCube(wanted, true));
+  window.SVBoot = { loadCube };                               // the app around the viewer decides when the first cube is loaded
 })();

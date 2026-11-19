@@ -1,0 +1,160 @@
+/* The seismic part of the stage, and the "On seismic" facet of the right panel. Same tokens and the same buttons,
+   tabs and type as the rest of the app (app.css). The viewports (sections, 3D view, well tie, thickness map) are
+   dark in both themes, like any image viewer; everything around them follows the theme. */
+
+.seis { position: relative; min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--bg); }
+.vh { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+/* ---------- form controls shared by the bar, the settings and the well tie ---------- */
+.seis select, .seis input[type="number"], #insp-tie select, #insp-tie input[type="number"] {
+  height: 30px; min-width: 0; padding: 0 8px; font-size: 13px; color: var(--ink);
+  background: var(--panel-2); border: 1px solid var(--line); border-radius: 7px;
+}
+.seis input[type="number"][aria-invalid="true"] { border-color: var(--warm); box-shadow: 0 0 0 1px var(--warm); }
+.seis input[type="range"], #insp-tie input[type="range"] { accent-color: var(--accent); margin: 0; min-width: 0; }
+.seis input[type="checkbox"], #insp-tie input[type="checkbox"] { accent-color: var(--accent); width: 15px; height: 15px; margin: 0; flex: none; }
+.seis button:disabled, #insp-tie button:disabled { opacity: .45; cursor: default; }
+.btn.tog[aria-pressed="true"], .btn[aria-expanded="true"] { background: var(--accent-soft); border-color: var(--accent); font-weight: 600; }
+
+/* ---------- the bar: which well, what is drawn on the seismic ---------- */
+.seis-bar { flex: none; display: flex; align-items: center; flex-wrap: wrap; gap: 8px 16px; padding: 8px 12px; background: var(--panel); border-bottom: 1px solid var(--line); }
+.sb-g { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.sb-g > label { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.sb-g select { max-width: 190px; }
+.sb-chk { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--ink-2); white-space: nowrap; cursor: pointer; }
+.sb-fill { flex: 1; }
+
+/* ---------- position of the three sections ---------- */
+.seis-pos { flex: none; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px 18px; padding: 7px 12px; background: var(--panel); border-bottom: 1px solid var(--line); }
+.pos { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.pos label { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--ink-2); white-space: nowrap; }
+.pos .key { width: 12px; height: 3px; border-radius: 2px; display: inline-block; }
+.key.il { background: #f0703a; } .key.xl { background: #2fcb93; } .key.t { background: #e0b400; }
+.pos input[type="range"] { flex: 1; }
+.pos input[type="number"] { width: 78px; flex: none; }
+button.step, button.mini, button.preset { border: 1px solid var(--line); border-radius: 7px; background: var(--panel); color: var(--ink); }
+button.step { width: 26px; height: 30px; flex: none; padding: 0; font-size: 17px; line-height: 1; }
+button.mini { height: 24px; padding: 0 9px; font-size: 11.5px; flex: none; border-radius: 6px; }
+button.step:hover:not(:disabled), button.mini:hover:not(:disabled), button.preset:hover:not(:disabled) { background: var(--panel-2); border-color: var(--muted); }
+.seis-note { flex: none; margin: 0; padding: 7px 12px; font-size: 12.5px; color: var(--ink-2); background: var(--accent-soft); border-bottom: 1px solid var(--line); }
+.seis-note:empty { display: none; }
+
+/* ---------- display and filter: drops down from the bar ---------- */
+.seis-pop {
+  position: absolute; z-index: 25; top: 50px; right: 12px; width: min(700px, calc(100% - 24px)); max-height: calc(100% - 66px); overflow: auto;
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; align-items: start; padding: 12px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow);
+}
+.seis .grp { margin: 0; min-width: 0; padding: 4px 10px 10px; background: var(--panel-2); border: 1px solid var(--line-2); border-radius: 9px; }
+.seis .grp > legend, .seis .grp > summary { padding: 0 5px; font-size: 10.5px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }
+.seis .grp > summary { cursor: pointer; padding: 3px 0; }
+.seis-pop .info, .seis-pop .help { grid-column: 1 / -1; }
+.ctl { display: flex; flex-direction: column; gap: 3px; margin-top: 6px; min-width: 0; }
+.ctl > label { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--ink-2); }
+.ctl select { width: 100%; }
+.inline-ctl { flex-direction: row; align-items: center; justify-content: space-between; }
+.inline-ctl input { width: 84px; }
+.seis .row { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.seis .row input[type="range"] { flex: 1; }
+.seis .row input[type="number"] { width: 74px; flex: none; }
+.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.pair input { width: 100%; }
+.check { display: flex; align-items: center; gap: 7px; margin-top: 8px; font-size: 12.5px; cursor: pointer; }
+.check.off { color: var(--muted); }
+.presets { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-top: 8px; }
+button.preset { height: 28px; font-size: 12px; padding: 0 6px; }
+button.preset[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); font-weight: 600; }
+.msg { margin-top: 6px; font-size: 12px; color: var(--warm); }
+.msg:empty, .hint:empty { display: none; }
+.hint { font-size: 11.5px; color: var(--muted); line-height: 1.4; }
+#attr-msg { margin-top: 6px; }
+kbd { font-family: var(--mono); font-size: 11px; padding: 0 4px; border: 1px solid var(--line); border-radius: 3px; background: var(--panel-2); }
+.spec-wrap { position: relative; height: 140px; margin-top: 4px; background: var(--view); border-radius: 7px; overflow: hidden; }
+.spec-wrap canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.spec-legend { font-size: 11.5px; color: var(--ink-2); margin-top: 4px; }
+.spec-legend .sw { display: inline-block; width: 20px; height: 0; border-radius: 0; vertical-align: middle; margin: 0 3px 0 6px; border-top: 2px solid var(--accent); }
+.spec-legend .sw:first-child { margin-left: 0; }
+.spec-legend .sw-raw { border-top: 2px dashed var(--muted); }
+.spec-legend .sw-sd { height: 9px; border-top: 0; background: rgba(240, 112, 58, .35); border-left: 2px dashed var(--warm); }
+.info dl { display: grid; grid-template-columns: auto 1fr; gap: 2px 8px; font-size: 11.5px; margin-top: 4px; }
+.info dt { color: var(--muted); }
+.info dd { font-family: var(--mono); overflow-wrap: anywhere; }
+.info pre { margin: 8px 0 0; max-height: 200px; overflow: auto; padding: 6px; font: 10px/1.35 var(--mono); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; color: var(--ink-2); }
+
+/* ---------- the viewports ---------- */
+.seis-views { flex: 1; min-height: 0; padding: 8px; display: grid; gap: 8px; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); grid-template-rows: minmax(0, 1fr) minmax(0, 1fr); }
+.seis-views #p-il { grid-column: 1 / -1; }
+.seis.with3d .seis-views { grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-rows: minmax(0, 1.55fr) minmax(0, 1fr); }
+.seis.with3d #p-3d { grid-column: 1 / -1; }
+.seis.with3d #p-il { grid-column: auto; }
+.seis .panel { display: flex; flex-direction: column; min-width: 0; min-height: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.p-head { flex: none; display: flex; align-items: center; gap: 10px; height: 32px; padding: 0 8px 0 11px; border-bottom: 1px solid var(--line-2); }
+.p-head h2 { flex: 1 1 auto; min-width: 0; overflow: hidden; display: flex; align-items: baseline; gap: 8px; font-size: 12.5px; font-weight: 400; white-space: nowrap; }
+.p-main { flex: none; font-weight: 650; font-size: 13.5px; }
+.p-sub { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--muted); }
+.p-status { flex: 0 100 auto; min-width: 0; overflow: hidden; display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--muted); white-space: nowrap; }
+.p-time { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.p-load { flex: none; color: var(--time); }
+.spinner { flex: none; width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--line); border-top-color: var(--time); animation: np-spin .8s linear infinite; }
+@keyframes np-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spinner { animation: none; border-color: var(--time); } }
+.p-body { position: relative; flex: 1; min-height: 0; background: var(--view); }
+.p-body canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: crosshair; touch-action: none; }
+.p-read { flex: none; height: 21px; margin: 0; padding: 0 11px; font-size: 11px; line-height: 21px; color: var(--muted); border-top: 1px solid var(--line-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.p-error { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); max-width: min(80%, 460px); display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 12px 16px; text-align: center; background: rgba(22, 12, 8, .94); border: 1px solid #f0703a; border-radius: 8px; color: #ffd9c7; font-size: 12.5px; }
+.p-error p::before { content: "Error: "; font-weight: 700; }
+#p-3d canvas { cursor: grab; }
+#p-3d canvas:active { cursor: grabbing; }
+#v3-ov { pointer-events: none; }
+.v3-head { gap: 12px; }
+.v3-head h2 { flex: 1 1 120px; }
+.v3-chk { flex: none; display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--ink-2); white-space: nowrap; }
+.v3-head input[type="range"] { width: 90px; }
+.v3-head output { font-size: 12px; min-width: 28px; }
+.seis-foot { flex: none; margin: 0; padding: 5px 12px 7px; font-size: 11.5px; color: var(--muted); background: var(--panel); border-top: 1px solid var(--line); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.seis-foot b { color: var(--ink-2); font-weight: 600; }
+.badge-warn { padding: 1px 7px; border: 1px solid var(--warm); border-radius: 5px; background: var(--warn-bg); color: var(--warm); font-size: 11px; letter-spacing: .05em; }
+.seis-fatal { position: absolute; inset: 0; z-index: 30; display: grid; place-items: center; padding: 20px; background: color-mix(in srgb, var(--bg) 90%, transparent); }
+.fatal-card { max-width: 470px; display: flex; flex-direction: column; gap: 10px; padding: 20px 22px; background: var(--panel); border: 1px solid var(--line); border-left: 4px solid var(--warm); border-radius: 12px; box-shadow: var(--shadow); }
+.fatal-card h2 { font-size: 16px; font-weight: 650; }
+.fatal-card p { font-size: 13px; color: var(--ink-2); }
+.fatal-card .btn { align-self: flex-start; }
+
+/* ---------- right panel, "On seismic": well tie, followed events, thickness map ---------- */
+#wl-info p { font-size: 12.5px; margin-bottom: 6px; }
+.wl-td { padding: 7px 10px; font-size: 12.5px; color: var(--ink-2); background: var(--warn-bg); border-left: 3px solid var(--warm); border-radius: 0 8px 8px 0; }
+.wl-td.wl-checkshot, .wl-td.wl-calibrated { background: var(--accent-soft); border-left-color: var(--pass); }
+.wl-tops { display: grid; gap: 1px; margin-top: 8px; }
+.wl-top, .wl-h { display: flex; align-items: center; gap: 8px; padding: 2px 0; font-size: 12.5px; }
+.wl-top .nm, .wl-h .nm { flex: 1; min-width: 0; }
+.wl-top .num { color: var(--muted); font-size: 12px; }
+.wl-top button, .wl-h button { border: 1px solid var(--line); background: var(--panel); border-radius: 6px; padding: 2px 9px; font-size: 12px; }
+.wl-top button:hover, .wl-h button:hover { background: var(--panel-2); border-color: var(--muted); }
+#insp-tie .sw { width: 14px; height: 5px; border-radius: 2px; flex: none; box-shadow: 0 0 0 1px var(--line); }
+.wl-grid { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px 12px; align-items: center; font-size: 12.5px; }
+.wl-grid > label { color: var(--ink-2); white-space: nowrap; }
+.wl-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; font-size: 12.5px; }
+.wl-row input[type="range"] { flex: 1; min-width: 90px; }
+.wl-row output { min-width: 54px; font-size: 12.5px; }
+.wl-row select { max-width: 100%; }
+.wl-row > label { color: var(--ink-2); }
+.wl-num { width: 78px; }
+.chk { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--ink-2); cursor: pointer; }
+#wl-tie { flex: none; width: 100%; height: 440px; display: block; background: var(--view); border-radius: 10px; }
+#wl-map { flex: none; width: 100%; display: block; background: var(--view); border-radius: 10px; }
+.wl-t { margin: 6px 0 10px; }
+.wl-t th, .wl-t td { padding: 4px 8px 4px 0; }
+
+/* ---------- narrower screens ---------- */
+@media (max-width: 1200px) {
+  .v3-head .p-sub { display: none; }
+  .v3-head { flex-wrap: wrap; height: auto; padding: 4px 8px; }
+  .p-status .p-time { display: none; }
+}
+@media (max-width: 860px) {
+  .stage { display: block; }
+  .seis-pos { grid-template-columns: minmax(0, 1fr); }
+  .seis-pop { grid-template-columns: minmax(0, 1fr); }
+  .seis-views, .seis.with3d .seis-views { display: flex; flex-direction: column; }
+  .seis .panel { height: 380px; flex: none; }
+}

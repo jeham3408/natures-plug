@@ -19,7 +19,7 @@
   const NODATA = -32768;
   const W = { ds: null, datasets: [], wells: [], sites: [], cur: -1, log: 'gr', showTops: true, shift: {}, horizons: [], f: 25, pol: 1, phase: 0, wavelet: 'ricker', tied: {},
     tieRange: null, mapTop: -1, mapBase: -1, vInt: null, pred: null, predProp: 'none', predSet: null };
-  let SV = null, API = 'api/';
+  let SV = null, API = 'api/', loadSeq = 0;
 
   /* ---------- small helpers ---------- */
   const fin = Number.isFinite;
@@ -155,8 +155,8 @@
   function renderPred() {
     const box = $('wl-pred-msg'); if (!box) return;
     const P = W.pred, w = well();
-    if (!P || !P.sections.length) { box.textContent = 'No prediction has been computed for this cube.'; return; }
-    if (W.predProp === 'none') { box.textContent = 'Choose a property to colour the inline through a well with its predicted value.'; return; }
+    if (!(P && P.sections && P.sections.length)) { box.textContent = ''; return; }
+    if (W.predProp === 'none') { box.textContent = ''; return; }
     const sec = w && P.sections.find((q) => q.well === w.name);
     const row = w && P.table.find((r) => r.well === w.name && r.prop === W.predProp);
     let h = sec ? 'Shown on inline ' + sec.il + ' (the inline through ' + esc(w.name) + '). ' : 'This well has no logs to learn from. ';
@@ -270,10 +270,10 @@
     if (!w || !w.logs || !w.logs.ai) { ctx.fillText(w ? 'This well has no sonic log, so no synthetic can be made. Tops are shown on the sections.' : 'Choose a well.', 10, 24); $('wl-corr').textContent = ''; return; }
     const L = w.logs, sh = shiftOf(w), syn = synthetic(w), [wa, wb] = tieTimes(w), ta = wa + sh - 60, tb = wb + sh + 60;
     const top = 34, bot = ch - 8, left = 44, Y = (t) => top + (t - ta) / (tb - ta) * (bot - top);
-    const tracks = [['gr', 'Gamma ray'], ['vp', 'Vp'], ['ai', 'Impedance'], ['syn', 'Synthetic'], ['seis', 'Seismic at well'], ['lc', 'Local corr.']];
+    const tracks = [['gr', 'Gamma ray'], ['vp', 'Vp'], ['ai', 'Impedance'], ['syn', 'Synthetic'], ['seis', 'Seismic'], ['lc', 'Fit']];
     const pSec = W.pred && W.pred.sections && W.pred.sections.find((q) => q.well === w.name), pKey = W.predProp === 'none' ? 'vp' : W.predProp;
     const pCur = pSec && pSec.curves[pKey] && pSec.curves[pKey][W.predSet] ? pSec.curves[pKey] : null;
-    if (pCur) tracks.push(['pred', 'Blind: ' + (pKey === 'gr' ? 'GR' : pKey === 'vp' ? 'Vp' : 'AI')]);
+    if (pCur) tracks.push(['pred', 'Predicted ' + (pKey === 'gr' ? 'GR' : pKey === 'vp' ? 'Vp' : 'AI')]);
     const tw = (cw - left - 6) / tracks.length;
     ctx.textAlign = 'right'; ctx.textBaseline = 'middle'; ctx.strokeStyle = '#2b3a35';
     const stepT = (tb - ta) > 900 ? 200 : (tb - ta) > 400 ? 100 : 50;
@@ -346,7 +346,7 @@
       ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'; ctx.fillStyle = '#93a19b'; ctx.font = '10px system-ui, sans-serif';
       if (L[key]) { const rg = logRange(w, key); ctx.fillText(Math.round(rg[0]) + ' – ' + Math.round(rg[1]) + ' ' + LOGS[key][1], (x0 + x1) / 2, 27); }
       else ctx.fillText(key === 'syn' ? (W.wavelet === 'seis' && w.wavelet ? 'seismic wavelet, ' + w.wavelet.peak_hz + ' Hz' : 'Ricker ' + W.f + ' Hz') + (W.phase ? ', ' + W.phase + '°' : '')
-        : key === 'seis' ? 'IL ' + w.seis.il + ' XL ' + w.seis.xl : key === 'pred' ? 'log yellow, predicted cyan' : '−1 … +1, 200 ms', (x0 + x1) / 2, 27);
+        : key === 'seis' ? 'at the well' : key === 'pred' ? 'blind, cyan' : '−1 … +1', (x0 + x1) / 2, 27);
     });
     ctx.font = '600 10px system-ui, sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'bottom';
     for (const t of w.tops) {
@@ -467,12 +467,12 @@
   /* ---------- controls ---------- */
   function renderWell() {
     const w = well(), box = $('wl-info');
-    if (!w) { box.innerHTML = '<p class="muted">No wells of the atlas fall inside this cube.</p>'; drawTie(); return; }
+    if (!w) { box.innerHTML = '<p class="muted">No well of the atlas is chosen in this cube.</p>'; drawTie(); return; }
     const kind = { checkshot: 'Checkshot-corrected sonic log (measured)', calibrated: 'Sonic log tied to the dataset\'s depth–time picks', sonic: 'Sonic log, not calibrated', trend: 'Regional trend only' }[w.td_kind];
 
     let h = '<p><b>' + esc(w.name) + '</b>' + (w.field ? ' · ' + esc(w.field) : '') + ' · inline ' + w.il.toFixed(0) + ', crossline ' + w.xl.toFixed(0) + '</p>' +
       '<p class="wl-td wl-' + w.td_kind + '"><b>Time–depth: ' + kind + '.</b> ' + esc(w.td_note) + '</p>' +
-      '<p class="muted">Logs: ' + esc(w.log_source || 'none open') + ' · <a data-atlas="' + esc(w.atlas || '') + '" href="../#' + encodeURI(w.atlas || '') + '">Open this well in the atlas</a></p><div class="wl-tops">';
+      '<p class="muted">Logs: ' + esc(w.log_source || 'none open') + '</p><div class="wl-tops">';
     for (const t of w.tops) h += '<div class="wl-top"><span class="sw" style="background:' + (TOP_COL[t.key] || '#fff') + '"></span><span class="nm">' + esc(t.name) + '</span><span class="num">' + Math.round(t.md) + ' m · ' + Math.round(t.twt + shiftOf(w)) + ' ms</span>' +
       '<button type="button" data-follow="' + t.key + '">Follow</button></div>';
     box.innerHTML = h + '</div>';
@@ -489,60 +489,26 @@
     const sh = w.tops.find((t) => t.key === 'sh'), last = M.t0_ms + (M.n_t - 1) * M.dt_ms;
     const snapT = (v) => M.t0_ms + Math.round((Math.min(last, Math.max(M.t0_ms, v)) - M.t0_ms) / M.dt_ms) * M.dt_ms;
     const lastTop = w.tops.length ? Math.max.apply(null, w.tops.map((t) => t.twt)) : w.seabed_twt + 1100;
-    const ta = snapT(w.seabed_twt - 80), tb = snapT((sh ? sh.twt : lastTop) + shiftOf(w) + 220);
+    const logEnd = w.logs ? w.logs.t0 + (w.logs.n - 1) * w.logs.dt : 0;                 // no Shetland top: show the logged interval
+    const ta = snapT(w.seabed_twt - 80), tb = snapT((sh ? sh.twt : Math.max(lastTop, Math.min(logEnd, w.seabed_twt + 1500))) + shiftOf(w) + 220);
     SV.S.zoom.il = { xl: [M.xl0, M.xl0 + (M.n_xl - 1) * M.xl_step], t: [ta, tb] };
     SV.S.zoom.xl = { il: [M.il0, M.il0 + (M.n_il - 1) * M.il_step], t: [ta, tb] };
     SV.P.il.afterZoom(); SV.P.xl.afterZoom();
   }
 
-  async function init() {
-    SV = window.SV; API = window.SV_API || 'api/';
-    try { W.datasets = (await (await fetch('api/datasets', { cache: 'no-store' })).json()).datasets || []; } catch (e) { W.datasets = []; }
-    const sel = $('wl-ds'), cur = window.SV_DS || (W.datasets[0] && W.datasets[0].id);
-    sel.innerHTML = W.datasets.map((d) => '<option value="' + esc(d.id) + '"' + (d.id === cur ? ' selected' : '') + '>' + esc(d.name || d.id) + '</option>').join('');
-    sel.addEventListener('change', () => { location.href = location.pathname + '?ds=' + encodeURIComponent(sel.value); });
-    try { const j = await (await fetch(API + 'wells', { cache: 'no-store' })).json(); W.wells = j.wells || []; W.sites = j.gc_sites || []; W.sources = j.sources || []; } catch (e) { W.wells = []; }
-    try { W.pred = await (await fetch(API + 'pred', { cache: 'no-store' })).json(); } catch (e) { W.pred = null; }
-    if (W.pred && W.pred.sets && W.pred.sets.length) W.predSet = W.pred.sets.indexOf('ncs') >= 0 ? 'ncs' : W.pred.sets[0];
-    const ps = $('wl-pred-set'), pp = $('wl-pred');
-    ps.innerHTML = ((W.pred && W.pred.sets) || []).map((k) => '<option value="' + k + '"' + (k === W.predSet ? ' selected' : '') + '>' + esc(SET_NAME[k] || k) + '</option>').join('');
-    pp.disabled = ps.disabled = !(W.pred && W.pred.sections && W.pred.sections.length);
+  /** Listeners, bound once: the controls stay when the cube changes. */
+  function setup() {
+    SV = window.SV;
+    const pp = $('wl-pred'), ps = $('wl-pred-set');
     const predChanged = () => {
       W.predProp = pp.value; W.predSet = ps.value || W.predSet;
-      const w = well(), sec = w && W.pred && W.pred.sections.find((q) => q.well === w.name);
+      const w = well(), sec = w && W.pred && W.pred.sections && W.pred.sections.find((q) => q.well === w.name);
       if (W.predProp !== 'none' && sec && SV.S.il !== sec.il) SV.setPos({ il: sec.il }, 0, false);     // the prediction lives on the inline through the well
       renderPred(); drawTie(); SV.redraw();
     };
     pp.addEventListener('change', predChanged); ps.addEventListener('change', predChanged);
-    const ws = $('wl-well');
-    ws.innerHTML = W.wells.map((w, n) => '<option value="' + n + '">' + esc(w.name) + (w.logs ? '' : ' (tops only)') + '</option>').join('') || '<option>no wells</option>';
-    W.cur = W.wells.length ? 0 : -1;
-    // every well with a sonic log gets the same rule: the bulk shift between -40 and +40 ms that correlates best in
-    // its tie window, if that beats no shift by more than 0.05. The panel says so, and Zero removes it.
-    for (const w of W.wells) {
-      if (!(w.logs && w.logs.ai)) continue;
-      if (w.td_kind === 'checkshot') { W.shift[w.name] = 0; continue; }   // a measured time-depth relation is not moved to fit
-      const keep = W.cur; W.cur = W.wells.indexOf(w); W._wv = null;
-      const bs = bestShift(w);
-      if (fin(bs.corr) && bs.corr > (fin(bs.zero) ? bs.zero : -1) + 0.05) { W.shift[w.name] = bs.best; W.tied[w.name] = true; } else W.shift[w.name] = 0;
-      W.cur = keep;
-    }
-    const want = new URLSearchParams(location.search).get('well'), wi = W.wells.findIndex((w) => w.name === want);
-    if (wi >= 0) { W.cur = wi; ws.value = String(wi); }
-    const toShell = (msg) => { if (window.parent !== window) { try { window.parent.postMessage(msg, location.origin); } catch (e) { /* stand-alone */ } } };
-    const pickWell = (n, tell) => { W.cur = n; ws.value = String(n); W.tieRange = null; renderWell(); SV.redraw(); drawClayMap(); gotoWell(); renderPred(); if (tell) toShell({ np: 'seis-well', ds: window.SV_DS, well: W.wells[n].name, atlas: W.wells[n].atlas }); };
-    ws.addEventListener('change', () => pickWell(Number(ws.value), true));
-    // inside the one-page app: the atlas can ask for a well, and "Open this well in the atlas" switches view
-    window.addEventListener('message', (e) => {
-      if (e.origin !== location.origin || !e.data || e.data.np !== 'goto-well') return;
-      const n = W.wells.findIndex((w) => w.name === e.data.well); if (n >= 0) pickWell(n, false);
-    });
-    document.addEventListener('click', (e) => {
-      const a = e.target.closest && e.target.closest('a[data-atlas]');
-      if (!a || window.parent === window) return;
-      e.preventDefault(); toShell({ np: 'open-atlas', hash: a.getAttribute('data-atlas') });
-    });
     $('wl-goto').addEventListener('click', gotoWell);
+    $('wl-zoom').addEventListener('click', zoomOverburden);
     $('wl-log').addEventListener('change', (e) => { W.log = e.target.value; SV.redraw(); });
     $('wl-tops').addEventListener('change', (e) => { W.showTops = e.target.checked; SV.redraw(); });
     $('wl-shift').addEventListener('input', (e) => setShift(Number(e.target.value), false));
@@ -551,12 +517,12 @@
     $('wl-f').addEventListener('input', (e) => { W.f = Number(e.target.value); $('wl-f-out').textContent = W.f + ' Hz'; drawTie(); });
     $('wl-wav').addEventListener('change', (e) => { W.wavelet = e.target.value; $('wl-f').disabled = W.wavelet !== 'ricker'; drawTie(); });
     $('wl-ph').addEventListener('input', (e) => { W.phase = Number(e.target.value); $('wl-ph-out').textContent = (W.phase > 0 ? '+' : '') + W.phase + '°'; drawTie(); });
+    $('wl-pol').addEventListener('change', (e) => { W.pol = e.target.checked ? -1 : 1; drawTie(); });
     const winSet = () => { const w = well(); if (!w) return; const sh = shiftOf(w), a = Number($('wl-win-a').value) - sh, b = Number($('wl-win-b').value) - sh; if (fin(a) && fin(b) && b - a >= 100) { W.tieRange = [a, b]; drawTie(); } };
     $('wl-win-a').addEventListener('change', winSet); $('wl-win-b').addEventListener('change', winSet);
     $('wl-win-clay').addEventListener('click', () => { W.tieRange = null; drawTie(); });
     $('wl-win-all').addEventListener('click', () => { const w = well(); if (!w || !w.logs) return; W.tieRange = [w.logs.t0, w.logs.t0 + (w.logs.n - 1) * w.logs.dt]; drawTie(); });
     $('wl-f').disabled = W.wavelet !== 'ricker';
-    $('wl-pol').addEventListener('change', (e) => { W.pol = e.target.checked ? -1 : 1; drawTie(); });
     $('wl-info').addEventListener('click', (e) => {
       const k = e.target && e.target.getAttribute && e.target.getAttribute('data-follow'); if (!k) return;
       const w = well(), t = w.tops.find((q) => q.key === k);
@@ -572,18 +538,58 @@
     });
     $('wl-map-top').addEventListener('change', (e) => { W.mapTop = Number(e.target.value); drawClayMap(); });
     $('wl-map-base').addEventListener('change', (e) => { W.mapBase = Number(e.target.value); drawClayMap(); });
-    const openDrawer = (on) => { $('wl-drawer').hidden = !on; $('wl-open').setAttribute('aria-expanded', String(on)); document.body.classList.toggle('wl-open', on); if (on) { drawTie(); drawClayMap(); } };
-    $('wl-open').addEventListener('click', () => openDrawer($('wl-drawer').hidden));
-    $('wl-close').addEventListener('click', () => openDrawer(false));
     window.addEventListener('resize', () => { drawTie(); drawClayMap(); });
-    $('wl-src').textContent = (W.sources || []).join(' · ');
-    renderWell(); renderHorizons(); drawClayMap(); renderPred();
-    $('wl-zoom').addEventListener('click', zoomOverburden);
-    if (W.wells.length && !location.hash) { gotoWell(); zoomOverburden(); }
-    SV.redraw();
-    window.SVWells.state = W;
+    window.addEventListener('sv-cube', loadCube);
   }
 
-  window.SVWells = { draw, state: W, synthetic, correlation, bestShift, tieTimes };
-  if (window.SV) init(); else window.addEventListener('sv-ready', init, { once: true });
+  /** Wells, bulk shifts and predictions of the cube that was just loaded. */
+  async function loadCube() {
+    API = window.SV_API || 'api/';
+    const seq = ++loadSeq;
+    W.wells = []; W.sites = []; W.cur = -1; W.horizons = []; W.shift = {}; W.tied = {}; W.tieRange = null; W.mapTop = W.mapBase = -1; W.pred = null; W._wv = null;
+    W.predProp = 'none'; $('wl-pred').value = 'none';
+    renderWell(); renderHorizons(); drawClayMap(); renderPred();
+    let j = null, pred = null;
+    try { j = await (await fetch(API + 'wells', { cache: 'no-store' })).json(); } catch (e) { j = null; }
+    try { pred = await (await fetch(API + 'pred', { cache: 'no-store' })).json(); } catch (e) { pred = null; }
+    if (seq !== loadSeq) return;                                // another cube was asked for meanwhile
+    W.wells = (j && j.wells) || []; W.sites = (j && j.gc_sites) || []; W.sources = (j && j.sources) || [];
+    W.pred = pred && pred.sections ? pred : null;
+    W.predSet = W.pred && W.pred.sets && W.pred.sets.length ? (W.pred.sets.indexOf('ncs') >= 0 ? 'ncs' : W.pred.sets[0]) : null;
+    const ps = $('wl-pred-set'), pp = $('wl-pred');
+    ps.innerHTML = ((W.pred && W.pred.sets) || []).map((k) => '<option value="' + k + '"' + (k === W.predSet ? ' selected' : '') + '>' + esc(SET_NAME[k] || k) + '</option>').join('');
+    pp.disabled = ps.disabled = !(W.pred && W.pred.sections.length);
+    // every well with a sonic log gets the same rule: the bulk shift between -40 and +40 ms that correlates best in
+    // its tie window, if that beats no shift by more than 0.05. The panel says so, and Zero removes it.
+    for (const w of W.wells) {
+      if (!(w.logs && w.logs.ai)) continue;
+      if (w.td_kind === 'checkshot') { W.shift[w.name] = 0; continue; }   // a measured time-depth relation is not moved to fit
+      W.cur = W.wells.indexOf(w); W._wv = null;
+      const bs = bestShift(w);
+      if (fin(bs.corr) && bs.corr > (fin(bs.zero) ? bs.zero : -1) + 0.05) { W.shift[w.name] = bs.best; W.tied[w.name] = true; } else W.shift[w.name] = 0;
+    }
+    const wi = W.wells.findIndex((w) => w.name === W.want);
+    W.cur = W.wells.length ? Math.max(0, wi) : -1; W._wv = null;
+    $('wl-src').textContent = (W.sources || []).join(' · ');
+    renderWell(); renderHorizons(); drawClayMap(); renderPred();
+    if (W.wells.length) { gotoWell(); zoomOverburden(); }
+    SV.redraw();
+    window.dispatchEvent(new CustomEvent('sv-wells', { detail: { ds: window.SV_DS, wells: W.wells.map((w) => w.name), well: well() ? well().name : null } }));
+  }
+
+  /** Make `name` the current well. Returns false when it is not in the cube shown (it is then chosen as soon as its
+   *  cube has loaded). */
+  function pick(name) {
+    W.want = name;
+    const n = W.wells.findIndex((w) => w.name === name);
+    if (n < 0) return false;
+    if (n !== W.cur) { W.cur = n; W.tieRange = null; W._wv = null; }
+    renderWell(); renderPred(); drawClayMap(); gotoWell(); SV.redraw();
+    return true;
+  }
+
+  window.SVWells = { draw, state: W, synthetic, correlation, bestShift, tieTimes, pick, current: () => well(),
+    /** Redraw the tie and the clay map, for instance after their pane became visible. */
+    refresh() { drawTie(); drawClayMap(); } };
+  if (window.SV) setup(); else window.addEventListener('sv-ready', setup, { once: true });
 })();

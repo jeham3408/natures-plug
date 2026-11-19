@@ -1,6 +1,6 @@
 # Seismic viewer
 
-> **Inside Nature's Plug.** This copy lives in `seismic/server/`; the page itself (index.html, app.js, style.css) is one folder up, in `seismic/`, and by default the server serves the whole Nature's Plug app. Start everything with `./start.sh` from the app root. Where this README says `web/` or `open.sh`, read `seismic/` and `start.sh`.
+> **Inside Nature's Plug.** The viewer is no longer a page of its own. Its scripts (`seismic/app.js`, `wells.js`, `view3d.js`) run inside the one page of the app (`index.html`, styled by `css/seismic.css`), and this folder is the back end. By default the server serves the whole app; start everything with `./start.sh` from the app root. Where this README says `web/`, `index.html`, `style.css` or `open.sh`, read the app's `index.html`, `css/seismic.css` and `start.sh`.
 
 A small interactive viewer for one 3D seismic cube: inline section, crossline
 section and time slice side by side, with band-pass filtering, RMS amplitude and

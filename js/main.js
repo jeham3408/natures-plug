@@ -4,13 +4,14 @@ import { loadAll } from "./data.js";
 import { createMap } from "./map.js";
 import { createPanels } from "./panels.js";
 import { createTour } from "./tour.js";
+import { createWorkspace } from "./workspace.js";
 import { $, $$, esc, title, frame } from "./util.js";
 
 const app = {
   state: { P: { ...DEFAULTS }, overrides: {}, level: "log", sel: null, tab: "fields", result: null },
   data: null, map: null,
 };
-let panels = null, tour = null;
+let panels = null, tour = null, ws = null;
 const layout = $("#layout"), maptip = $("#maptip"), mapwrap = $("#mapwrap");
 
 // ------------------------------------------------------------------ recalculation
@@ -21,6 +22,7 @@ const recompute = frame(() => {
   panels.renderKpis(); panels.renderLegend(); panels.renderFields();
   if (s.tab === "valid") panels.renderValid();
   panels.refreshSelection();
+  ws?.applyInspector();
 });
 
 // ------------------------------------------------------------------ actions
@@ -31,6 +33,7 @@ function select(sel, focus) {
   app.map.setSelection(sel ? (sel.type === "field" ? { type: "field", i: sel.i } : sel) : null);
   panels.showSelection();
   panels.renderFields();
+  ws?.onSelect();
   writeHash();
   if (!sel || !focus) return;
   const d = app.data;
@@ -52,9 +55,9 @@ Object.assign(app, {
     if (app.state.level === level) return;
     app.state.level = level;
     $$("#level button").forEach((b) => b.classList.toggle("is-active", b.dataset.level === level));
-    app.map.setLevel(level); app.map.setShow("l1", level === "fm");
+    app.map.setLevel(level); app.map.setShow("l1", level !== "log");
     panels.renderKpis(); panels.renderLegend(); panels.renderFields();
-    if (app.state.sel && (app.state.sel.type === "field" || app.state.sel.type === "wb")) panels.showSelection();
+    if (app.state.sel && (app.state.sel.type === "field" || app.state.sel.type === "wb")) { panels.showSelection(); ws?.applyInspector(); }
   },
   setTab(tab) {
     app.state.tab = tab;
@@ -78,20 +81,12 @@ function writeHash() {
   const s = app.state.sel, d = app.data;
   const h = !s ? "" : s.type === "ctl" ? "well=" + d.controls[s.i].name : s.type === "wb" ? "wellbore=" + d.wb.name[s.i] : s.type === "l1" ? "exploration=" + d.layer1[s.i].n : "field=" + s.name;
   try { history.replaceState(null, "", h ? "#" + encodeURIComponent(h).replace(/%3D/, "=").replace(/%2F/g, "/") : location.pathname + location.search); } catch (e) { /* file preview */ }
-  toShell({ np: "atlas-select", hash: h });
 }
-// Inside the one-page app (index.html) the atlas tells the shell what is selected, and "On seismic" opens the
-// seismic view beside it instead of leaving the page.
-function toShell(msg) { if (window.parent !== window) { try { window.parent.postMessage(msg, location.origin); } catch (e) { /* opened from disk */ } } }
-document.addEventListener("click", (e) => {
-  const a = e.target.closest && e.target.closest("a[data-seis-well]");
-  if (!a || window.parent === window) return;
-  e.preventDefault();
-  toShell({ np: "open-seismic", ds: a.dataset.seisDs, well: a.dataset.seisWell });
-});
 function readHash() {
   let h = "";
   try { h = decodeURIComponent(location.hash.slice(1)); } catch (e) { return false; } // a malformed link opens the plain map
+  if (h === "seismic") { ws?.setWs("seismic"); return true; }                  // old links to the seismic page
+  if (h === "greenclay") { app.setLevel("gc"); ws?.openGreenClay(); return true; }   // old links to the Green Clay page
   const m = h.match(/^(well|wellbore|exploration|field)=(.+)$/);
   if (!m) return false;
   if (m[1] === "well") app.selectControl(m[2], true); else if (m[1] === "wellbore") app.selectWellbore(m[2], true);
@@ -146,6 +141,8 @@ async function boot() {
   app.state.result = computeAll(app.data, app.state.P, app.state.overrides);
   app.map = createMap($("#map"), app.data, {
     select(h) {
+      if (h && h.type === "cube") return ws.openCube(h.id);
+      if (h && h.type === "site") return ws.openGreenClay(h.i);
       if (!h) return select(null);
       if (h.type === "field") return app.selectField(app.data.fieldGeo[h.i].name, false);
       select(h, false);
@@ -158,7 +155,7 @@ async function boot() {
       maptip.style.top = Math.max(6, py + 14 + r.height > hh ? py - r.height - 12 : py + 14) + "px";
     },
   });
-  panels = createPanels(app); tour = createTour(app);
+  panels = createPanels(app); tour = createTour(app); ws = createWorkspace(app);
   app.map.setResult(app.state.result);
   panels.renderKpis(); panels.renderLegend(); panels.renderFields();
   setupSearch();
@@ -169,7 +166,7 @@ async function boot() {
   $("#zoom-in").addEventListener("click", () => app.map.zoomBy(1.6));
   $("#zoom-out").addEventListener("click", () => app.map.zoomBy(1 / 1.6));
   $("#toggle-left").addEventListener("click", () => layout.classList.toggle("left-off"));
-  $("#btn-tour").addEventListener("click", () => tour.start());
+  $("#btn-tour").addEventListener("click", () => { ws.setWs("map"); tour.start(); });
   $("#btn-method").addEventListener("click", () => tour.method());
   $("#btn-theme").addEventListener("click", () => {
     const t = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
@@ -178,7 +175,7 @@ async function boot() {
     app.map.theme();
   });
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && !tour.active() && $("#modal-root").hidden && app.state.sel && document.activeElement?.tagName !== "INPUT") select(null);
+    if (e.key === "Escape" && !tour.active() && $("#modal-root").hidden && $("#gc-sheet").hidden && app.state.sel && !/^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement?.tagName || "")) select(null);
   });
   window.addEventListener("hashchange", readHash);
 

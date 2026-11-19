@@ -424,17 +424,29 @@ def main(argv=None):
     p = os.path.join(a.cube, "wells.json")
     with open(p, "w") as fh:
         json.dump(res, fh, separators=(",", ":"))
-    # tell the atlas which wells can be opened on seismic (data/seismic_wells.json, merged over the cubes)
+    # tell the app which wells lie inside a cube, and where the cube is (data/seismic_wells.json, merged over the cubes)
     idx_path = os.path.join(a.app, "data", "seismic_wells.json")
     ds_id = os.path.basename(os.path.normpath(a.cube))
-    idx = {}
+    idx = {"wells": {}, "cubes": {}}
     if os.path.isfile(idx_path):
-        idx = {k: v for k, v in json.load(open(idx_path)).items() if v.get("ds") != ds_id}
+        old = json.load(open(idx_path))
+        if "wells" in old and "cubes" in old:
+            idx["wells"] = {k: v for k, v in old["wells"].items() if v.get("ds") != ds_id}
+            idx["cubes"] = {k: v for k, v in old["cubes"].items() if k != ds_id}
     for r in wells:
-        if r["name"] not in idx or r["logs"] is not None:
-            idx[r["name"]] = dict(ds=ds_id, cube=meta.get("name"), td=r["td_kind"])
+        if r["name"] not in idx["wells"] or r["logs"] is not None:
+            idx["wells"][r["name"]] = dict(ds=ds_id, cube=meta.get("name"), td=r["td_kind"])
+    to_geo = pyproj.Transformer.from_crs(23031, 4230, always_xy=True)   # outline of the cube in ED50 longitude, latitude
+    corners = []
+    for ci, cj in ((0, 0), (n_il - 1, 0), (n_il - 1, n_xl - 1), (0, n_xl - 1)):
+        cx, cy = np.array([ox, oy]) + A @ np.array([ci, cj])
+        lon, lat = to_geo.transform(cx, cy)
+        corners.append([round(lon, 5), round(lat, 5)])
+    short = (meta.get("name") or ds_id).split(",")[0].replace(" 3D", "")
+    idx["cubes"][ds_id] = dict(name=meta.get("name"), short=short, outline=corners, licence=meta.get("licence"), attribution=meta.get("attribution"))
+    idx = dict(wells=dict(sorted(idx["wells"].items())), cubes=dict(sorted(idx["cubes"].items())))
     with open(idx_path, "w") as fh:
-        json.dump(dict(sorted(idx.items())), fh, separators=(",", ":"))
+        json.dump(idx, fh, separators=(",", ":"))
     for r in wells:
         print("%-12s IL %7.1f XL %7.1f  seabed %6.1f ms  td=%-15s logs=%s  tops=%s" % (
             r["name"], r["il"], r["xl"], r["seabed_twt"], r["td_kind"] + ("/%d" % r["v_gap"] if r.get("v_gap") else ""),

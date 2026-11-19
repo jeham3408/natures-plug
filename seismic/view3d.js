@@ -227,7 +227,7 @@
 
   /* ---------- setup ---------- */
   function setOn(v, remember) {
-    on = v; document.body.classList.toggle('with3d', on); $('p-3d').hidden = !on; $('v3-toggle').setAttribute('aria-pressed', String(on)); $('v3-toggle').textContent = on ? '3D view: on' : '3D view: off';
+    on = v; $('seis').classList.toggle('with3d', on); $('p-3d').hidden = !on; $('v3-toggle').setAttribute('aria-pressed', String(on));
     if (remember) { try { localStorage.setItem('np-3d', on ? '1' : '0'); } catch (e) { /* private window */ } }   // only the user's own choice is kept
     for (const k in SV.P) SV.P[k].resize();
     if (on) { touched.il = touched.xl = touched.map = true; touch(); }
@@ -257,7 +257,9 @@
     $('v3-toggle').addEventListener('click', () => setOn(!on, true));
     if (window.ResizeObserver) new ResizeObserver(() => touch()).observe(cv);
     let want = true; try { want = localStorage.getItem('np-3d') !== '0'; } catch (e) { /* keep */ }
-    setOn(want && window.innerWidth >= 900, false);
+    setOn(want, false);
+    // another cube: forget the surfaces and the hand-set vertical scale, look at the new box from the standard angle
+    window.addEventListener('sv-cube', () => { horKey = ''; V.veUser = false; V.pan = [0, 0, 0]; V.az = -1.05; V.el = 0.42; V.dist = 2.25; touched.il = touched.xl = touched.map = true; for (const k in tex) tex[k].ok = false; touch(); });
     window.SV3D.view = V;
   }
   window.SV3D = { touch, view: V };

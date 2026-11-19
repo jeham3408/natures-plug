@@ -4,159 +4,400 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Nature's Plug</title>
-<meta name="description" content="An open atlas of where the overburden clay on the Norwegian continental shelf can seal a well by itself, with the wells shown on open 3D seismic.">
+<meta name="description" content="An open atlas of where the overburden clay on the Norwegian continental shelf can seal a well by itself, with the Green Clay as a map layer and the wells shown on open 3D seismic. Built from open data.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230b7a57'/%3E%3Crect x='13' y='4' width='6' height='24' fill='%23fff'/%3E%3Cpath d='M4 10h9v12H4zM19 10h9v12h-9z' fill='%238fe0c0'/%3E%3C/svg%3E">
-<style>
-  /* The shell of the one-page app: one bar, and the atlas, the Green Clay predictor and the seismic viewer as views
-     of the same page. Each view is its own document (atlas.html, greenclay/, seismic/) kept alive in a frame, so
-     switching is instant and nothing is reloaded; they talk to each other through this page (see the script). */
-  :root { --bg: #0a1412; --bar: #111c19; --ink: #e8efec; --ink-2: #c5d0cb; --muted: #93a19b; --line: #2b3a35; --accent: #2fcb93; --accent-soft: #143329; --warm: #f0703a; }
-  * { box-sizing: border-box; }
-  html, body { height: 100%; margin: 0; }
-  body { display: flex; flex-direction: column; background: var(--bg); color: var(--ink); font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
-  .bar { flex: none; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 6px max(12px, env(safe-area-inset-right, 0px)) 6px max(12px, env(safe-area-inset-left, 0px)); background: var(--bar); border-bottom: 1px solid var(--line); }
-  .brand { display: flex; align-items: center; gap: 9px; margin-right: 6px; }
-  .brand svg { width: 26px; height: 26px; flex: none; }
-  .brand b { font-size: 15px; letter-spacing: .01em; white-space: nowrap; }
-  .tabs { display: flex; gap: 4px; flex-wrap: wrap; }
-  .tabs button { font: inherit; color: var(--ink-2); background: transparent; border: 1px solid transparent; border-radius: 7px; padding: 6px 12px; cursor: pointer; white-space: nowrap; }
-  .tabs button:hover { color: var(--ink); border-color: var(--line); }
-  .tabs button[aria-selected="true"] { color: var(--ink); background: var(--accent-soft); border-color: var(--accent); font-weight: 600; }
-  .tabs button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-  .status { margin-left: auto; display: flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--muted); white-space: nowrap; }
-  .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); flex: none; }
-  .dot.on { background: var(--accent); } .dot.off { background: var(--warm); }
-  .views { flex: 1; min-height: 0; display: flex; }
-  .views iframe { flex: 1 1 0; min-width: 0; width: 100%; height: 100%; border: 0; background: var(--bg); }
-  .views iframe[hidden] { display: none; }
-  body[data-view="split"] #f-atlas { flex: 0 0 42%; border-right: 2px solid var(--line); }
-  @media (max-width: 900px) {
-    body[data-view="split"] .views { flex-direction: column; }
-    body[data-view="split"] #f-atlas { flex: 0 0 45%; border-right: 0; border-bottom: 2px solid var(--line); }
-    .status span { display: none; }
-  }
-</style>
-</head>
-<body data-view="atlas">
-<header class="bar">
-  <div class="brand">
-    <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#0b7a57"/><rect x="13" y="4" width="6" height="24" fill="#fff"/><path d="M4 10h9v12H4zM19 10h9v12h-9z" fill="#8fe0c0"/></svg>
-    <b>Nature's Plug</b>
-  </div>
-  <div class="tabs" role="tablist" aria-label="Views">
-    <button type="button" role="tab" data-view="atlas" aria-selected="true" title="Map of the wells left to plug and the clay screening">Atlas</button>
-    <button type="button" role="tab" data-view="split" aria-selected="false" title="Atlas and seismic side by side: choosing a well in one shows it in the other">Atlas + seismic</button>
-    <button type="button" role="tab" data-view="seismic" aria-selected="false" title="Sections, 3D view, logs on seismic, well tie and followed events">Seismic and 3D</button>
-    <button type="button" role="tab" data-view="greenclay" aria-selected="false" title="Where the top of the Green Clay sits, predicted from well reports">Green Clay</button>
-  </div>
-  <div class="status" id="status" title="The seismic view needs its server (./start.sh). The atlas and the Green Clay predictor work without it."><i class="dot" id="dot"></i><span id="status-text">Checking the seismic server…</span></div>
-</header>
-<main class="views">
-  <iframe id="f-atlas" title="Atlas" src="about:blank"></iframe>
-  <iframe id="f-seismic" title="Seismic and 3D" hidden></iframe>
-  <iframe id="f-greenclay" title="Green Clay predictor" hidden></iframe>
-</main>
-<noscript><p style="padding:16px">This app needs JavaScript. The atlas alone is at <a href="atlas.html" style="color:#2fcb93">atlas.html</a>.</p></noscript>
+<link rel="stylesheet" href="css/app.css">
+<link rel="stylesheet" href="css/seismic.css">
 <script>
-(function () {
-  'use strict';
-  var $ = function (id) { return document.getElementById(id); };
-  var F = { atlas: $('f-atlas'), seismic: $('f-seismic'), greenclay: $('f-greenclay') };
-  var view = 'atlas', atlasHash = '', seis = { loaded: false, ds: null, well: null }, seisWells = {};
-  var ATLAS_LINK = /^(well|wellbore|exploration|field)=(.+)$/;
-
-  function enc(h) { return encodeURIComponent(h).replace(/%3D/, '=').replace(/%2F/g, '/').replace(/%3A/g, ':'); }
-  function setHash() {
-    var h = view === 'atlas' ? atlasHash : view === 'seismic' ? 'seismic' + (seis.ds ? ':' + seis.ds + (seis.well ? ':' + seis.well : '') : '') : view;
-    try { history.replaceState(null, '', h ? '#' + enc(h) : location.pathname + location.search); } catch (e) { /* opened from disk */ }
-  }
-  function loadSeismic(ds, well) {
-    var q = [];
-    if (ds) q.push('ds=' + encodeURIComponent(ds));
-    if (well) q.push('well=' + encodeURIComponent(well));
-    F.seismic.src = 'seismic/' + (q.length ? '?' + q.join('&') : '');
-    seis.loaded = true; seis.ds = ds || seis.ds; seis.well = well || null;
-  }
-  /** Show a well in the seismic view: reload only when the cube changes. */
-  function seisGoto(ds, well) {
-    if (!seis.loaded || (ds && ds !== seis.ds)) return loadSeismic(ds, well);
-    seis.well = well;
-    try { F.seismic.contentWindow.postMessage({ np: 'goto-well', well: well }, location.origin); } catch (e) { loadSeismic(ds, well); }
-  }
-  function show(v) {
-    view = v; document.body.dataset.view = v;
-    F.atlas.hidden = !(v === 'atlas' || v === 'split');
-    F.seismic.hidden = !(v === 'seismic' || v === 'split');
-    F.greenclay.hidden = v !== 'greenclay';
-    if (!F.seismic.hidden && !seis.loaded) {
-      // open on the well chosen in the atlas when it lies inside a cube
-      var m = atlasHash.match(ATLAS_LINK), s = m && seisWells[m[2]];
-      loadSeismic(s ? s.ds : null, s ? m[2] : null);
-    }
-    if (v === 'greenclay' && !F.greenclay.getAttribute('src')) F.greenclay.src = 'greenclay/';
-    var tabs = document.querySelectorAll('.tabs button');
-    for (var i = 0; i < tabs.length; i++) tabs[i].setAttribute('aria-selected', String(tabs[i].dataset.view === v));
-    setHash();
-  }
-
-  // messages from the views (same origin only)
-  window.addEventListener('message', function (e) {
-    if (e.origin !== location.origin || !e.data || typeof e.data.np !== 'string') return;
-    var d = e.data, m;
-    if (d.np === 'atlas-select') {
-      atlasHash = d.hash || '';
-      m = atlasHash.match(ATLAS_LINK);
-      if (view === 'split' && m && seisWells[m[2]]) seisGoto(seisWells[m[2]].ds, m[2]);     // the same well on seismic
-      setHash();
-    } else if (d.np === 'open-seismic') {
-      if (view !== 'split') show('seismic');
-      seisGoto(d.ds, d.well); setHash();
-    } else if (d.np === 'open-atlas') {
-      atlasHash = d.hash || '';
-      try { F.atlas.contentWindow.location.hash = enc(atlasHash); } catch (err) { /* frame not ready */ }
-      if (view !== 'split') show('atlas'); else setHash();
-    } else if (d.np === 'seis-well') {
-      seis.ds = d.ds || seis.ds; seis.well = d.well;
-      if (view === 'split' && d.atlas) { atlasHash = d.atlas; try { F.atlas.contentWindow.location.hash = enc(d.atlas); } catch (err) { /* frame not ready */ } }
-      setHash();
-    }
-  });
-
-  var tabs = document.querySelectorAll('.tabs button');
-  for (var i = 0; i < tabs.length; i++) tabs[i].addEventListener('click', function () { show(this.dataset.view); });
-
-  /** Read the address: old deep links (#well=..., #field=...) open the atlas on that selection; #seismic:cube:well,
-   *  #split and #greenclay open those views. */
-  function readHash() {
-    var h = '';
-    try { h = decodeURIComponent(location.hash.slice(1)); } catch (e) { h = ''; }
-    var v = 'atlas', sm = h.match(/^seismic(?::([^:]+)(?::(.+))?)?$/), out = { view: 'atlas', atlas: null, ds: null, well: null };
-    if (ATLAS_LINK.test(h)) out.atlas = h;
-    else if (sm) { out.view = 'seismic'; out.ds = sm[1] || null; out.well = sm[2] || null; }
-    else if (h === 'split' || h === 'greenclay') out.view = h;
-    return out;
-  }
-  var start = readHash();
-  if (start.atlas) atlasHash = start.atlas;
-  F.atlas.src = 'atlas.html' + (atlasHash ? '#' + enc(atlasHash) : '');
-
-  fetch('data/seismic_wells.json').then(function (r) { return r.ok ? r.json() : {}; }).catch(function () { return {}; }).then(function (j) {
-    seisWells = j || {};
-    if (start.view === 'seismic' && start.ds) loadSeismic(start.ds, start.well);
-    show(start.view);
-  });
-  // a link followed or an address typed while the app is open (our own updates use replaceState and do not fire this)
-  window.addEventListener('hashchange', function () {
-    var q = readHash();
-    if (q.atlas) { atlasHash = q.atlas; try { F.atlas.contentWindow.location.hash = enc(q.atlas); } catch (e) { /* frame not ready */ } }
-    if (q.view === 'seismic' && q.ds) { show('seismic'); seisGoto(q.ds, q.well); setHash(); } else show(q.view);
-  });
-  fetch('seismic/api/health', { cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }).then(function (j) {
-    var ok = !!(j && j.ok);
-    $('dot').className = 'dot ' + (ok ? 'on' : 'off');
-    $('status-text').textContent = ok ? 'Seismic server connected' : 'Seismic server not running (start with ./start.sh)';
-  });
-})();
+  // Set the theme before first paint.
+  (function () {
+    var t = null;
+    try { t = localStorage.getItem("np-theme"); } catch (e) {}
+    if (t !== "light" && t !== "dark") t = window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    document.documentElement.dataset.theme = t;
+  })();
 </script>
+</head>
+<body>
+<div id="boot" class="boot" role="status" aria-live="polite">
+  <div class="boot-card">
+    <div class="boot-name">Nature's Plug</div>
+    <div class="boot-bar"><i id="boot-fill"></i></div>
+    <div class="boot-msg" id="boot-msg">Loading open well data…</div>
+  </div>
+</div>
+
+<header class="topbar">
+  <div class="brand">
+    <svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="var(--accent)"/><rect x="13" y="4" width="6" height="24" fill="var(--accent-ink)"/><path d="M4 10h9v12H4zM19 10h9v12h-9z" fill="var(--accent-ink)" opacity=".55"/></svg>
+    <div class="brand-text">
+      <h1>Nature's Plug</h1>
+      <p>Where the overburden clay can seal a well by itself</p>
+    </div>
+  </div>
+  <div class="seg ws" id="ws" role="group" aria-label="What the middle of the page shows">
+    <button type="button" class="is-active" data-ws="map" aria-pressed="true" title="The map of the wells left to plug">Map</button>
+    <button type="button" data-ws="seismic" aria-pressed="false"><i class="dot none"></i>Seismic and 3D</button>
+    <button type="button" data-ws="both" aria-pressed="false" title="The map above the seismic">Both</button>
+  </div>
+  <div class="kpis" id="kpis" aria-live="polite"></div>
+  <div class="search" id="search">
+    <input id="search-input" type="search" placeholder="Find a field, well or wellbore" autocomplete="off" spellcheck="false" aria-label="Find a field, well or wellbore">
+    <ul class="search-results" id="search-results" hidden></ul>
+  </div>
+  <nav class="actions">
+    <button class="btn" id="btn-tour" type="button">Tour</button>
+    <button class="btn" id="btn-method" type="button">Method and limits</button>
+    <button class="btn icon" id="btn-theme" type="button" aria-label="Switch between light and dark theme" title="Switch theme">
+      <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M10 2a8 8 0 1 0 0 16V2z" fill="currentColor"/><circle cx="10" cy="10" r="7.25" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+    </button>
+  </nav>
+</header>
+
+<main class="layout" id="layout">
+  <aside class="side left" id="left" aria-label="Fields, assumptions and validation">
+    <div class="tabs" role="tablist">
+      <button class="tab is-active" role="tab" aria-selected="true" data-tab="fields" id="tab-fields">Fields</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="assume" id="tab-assume">Assumptions</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="valid" id="tab-valid">Validation</button>
+    </div>
+    <section class="tabpanel" id="panel-fields" role="tabpanel" aria-labelledby="tab-fields"></section>
+    <section class="tabpanel" id="panel-assume" role="tabpanel" aria-labelledby="tab-assume" hidden></section>
+    <section class="tabpanel" id="panel-valid" role="tabpanel" aria-labelledby="tab-valid" hidden></section>
+  </aside>
+
+  <div class="stage" id="stage" data-ws="map">
+
+    <section class="mapwrap" id="mapwrap" aria-label="Map of the Norwegian continental shelf">
+      <canvas id="map" tabindex="0" aria-label="Map. Drag to pan, scroll to zoom, click a well or a field."></canvas>
+      <div class="map-top">
+        <div class="seg" id="level" role="group" aria-label="What the colours on the map show">
+          <button type="button" class="is-active" data-level="log" title="Wells with open logs: clay signature inside the pressure window">Log level</button>
+          <button type="button" data-level="fm" title="All exploration wells with tops: Hordaland or Rogaland Group inside the pressure window">Formation level</button>
+          <button type="button" data-level="gc" title="Depth to the top of the Green Clay, predicted from what the operators wrote in their well reports">Green Clay</button>
+        </div>
+        <div class="seg regions" id="regions" role="group" aria-label="Jump to a region">
+          <button type="button" data-region="north">North Sea</button>
+          <button type="button" data-region="norw">Norwegian Sea</button>
+          <button type="button" data-region="barents">Barents Sea</button>
+          <button type="button" data-region="all">All</button>
+        </div>
+      </div>
+      <div class="map-zoom">
+        <button type="button" class="btn icon" id="zoom-in" aria-label="Zoom in">+</button>
+        <button type="button" class="btn icon" id="zoom-out" aria-label="Zoom out">−</button>
+        <button type="button" class="btn icon" id="toggle-left" aria-label="Show or hide the left panel" title="Show or hide the left panel">
+          <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><rect x="2.75" y="3.75" width="14.5" height="12.5" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M7.5 4v12" stroke="currentColor" stroke-width="1.5"/></svg>
+        </button>
+      </div>
+      <div class="legend" id="legend"></div>
+      <div class="maptip" id="maptip" hidden></div>
+      <div class="tourcard" id="tourcard" hidden></div>
+    </section>
+
+    <section class="seis" id="seis" aria-label="Seismic sections and 3D view" hidden>
+      <div class="seis-bar">
+        <div class="sb-g">
+          <label for="seis-pick">Well</label>
+          <select id="seis-pick" title="Wells of the atlas that lie inside an open seismic cube"></select>
+          <button type="button" class="btn" id="wl-goto" title="Move the cross-hair to this well">Go to</button>
+          <button type="button" class="btn" id="wl-zoom" title="Zoom both sections to the overburden of this well">Overburden</button>
+        </div>
+        <div class="sb-g">
+          <label for="wl-log">Log on the seismic</label>
+          <select id="wl-log">
+            <option value="gr">Gamma ray</option><option value="vp">P velocity (sonic)</option><option value="ai">Acoustic impedance</option>
+            <option value="rdep">Deep resistivity (log scale)</option><option value="rho_used">Density</option><option value="vpvs">Vp/Vs (where shear was logged)</option><option value="none">None</option>
+          </select>
+        </div>
+        <div class="sb-g">
+          <label for="wl-pred">Predicted from seismic</label>
+          <select id="wl-pred" title="Colours the inline through the well with the value predicted from the seismic"><option value="none">None</option><option value="vp">P velocity</option><option value="ai">Acoustic impedance</option><option value="gr">Gamma ray</option></select>
+          <select id="wl-pred-set" aria-label="Features the prediction is made from"></select>
+        </div>
+        <label class="sb-chk"><input type="checkbox" id="wl-tops" checked> Tops</label>
+        <span class="sb-fill"></span>
+        <button type="button" class="btn tog" id="v3-toggle" aria-pressed="false" title="Show or hide the 3D view">3D view</button>
+        <button type="button" class="btn" id="seis-display" aria-expanded="false" aria-controls="seis-pop">Display and filter</button>
+        <button type="button" class="btn icon" id="seis-left" aria-label="Show or hide the left panel" title="Show or hide the left panel">
+          <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><rect x="2.75" y="3.75" width="14.5" height="12.5" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M7.5 4v12" stroke="currentColor" stroke-width="1.5"/></svg>
+        </button>
+      </div>
+
+      <div class="seis-pos" role="group" aria-label="Position of the three sections">
+        <div class="pos">
+          <label for="il-num"><i class="key il"></i>Inline</label>
+          <button type="button" class="step" id="il-prev" aria-label="Previous inline" title="Previous inline">&#8249;</button>
+          <input type="range" id="il-rng" aria-label="Inline (slider)">
+          <button type="button" class="step" id="il-next" aria-label="Next inline" title="Next inline">&#8250;</button>
+          <input type="number" id="il-num" class="num" inputmode="numeric">
+        </div>
+        <div class="pos">
+          <label for="xl-num"><i class="key xl"></i>Crossline</label>
+          <button type="button" class="step" id="xl-prev" aria-label="Previous crossline" title="Previous crossline">&#8249;</button>
+          <input type="range" id="xl-rng" aria-label="Crossline (slider)">
+          <button type="button" class="step" id="xl-next" aria-label="Next crossline" title="Next crossline">&#8250;</button>
+          <input type="number" id="xl-num" class="num" inputmode="numeric">
+        </div>
+        <div class="pos">
+          <label for="t-num"><i class="key t"></i>Time, ms</label>
+          <button type="button" class="step" id="t-prev" aria-label="Previous time sample (shallower)" title="Shallower">&#8249;</button>
+          <input type="range" id="t-rng" aria-label="Two-way time in ms (slider)">
+          <button type="button" class="step" id="t-next" aria-label="Next time sample (deeper)" title="Deeper">&#8250;</button>
+          <input type="number" id="t-num" class="num" inputmode="decimal">
+        </div>
+      </div>
+      <p id="wl-pred-msg" class="seis-note"></p>
+
+      <div class="seis-pop" id="seis-pop" hidden>
+        <fieldset class="grp">
+          <legend>Attribute, all three sections</legend>
+          <div class="ctl">
+            <label for="attr" class="vh">Attribute shown in all three sections</label>
+            <select id="attr">
+              <option value="amp">Amplitude</option>
+              <option value="rms">RMS amplitude</option>
+              <option value="env">Envelope</option>
+              <option value="ifreq">Instantaneous frequency</option>
+              <option value="sd">Spectral decomposition</option>
+            </select>
+            <p id="attr-msg" class="hint" role="status" aria-live="polite"></p>
+          </div>
+          <div class="ctl inline-ctl" id="ctl-win" hidden>
+            <label for="win">RMS window length (ms)</label>
+            <input type="number" id="win" class="num" min="1" max="1000" step="1" value="100">
+          </div>
+          <div class="ctl" id="ctl-f0" hidden>
+            <label for="f0">Decomposition frequency (Hz)</label>
+            <div class="row">
+              <input type="range" id="f0-rng" min="5" max="100" step="1" value="30" aria-label="Decomposition frequency in Hz (slider)">
+              <input type="number" id="f0" class="num" min="5" max="100" step="1" value="30">
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset class="grp">
+          <legend>Band-pass filter</legend>
+          <label class="check"><input type="checkbox" id="bp-on"> <span>Apply band-pass</span></label>
+          <div class="pair">
+            <div class="ctl"><label for="flo">Low corner (Hz)</label><input type="number" id="flo" class="num" min="0" step="1" value="5"></div>
+            <div class="ctl"><label for="fhi">High corner (Hz)</label><input type="number" id="fhi" class="num" min="0" step="1" value="60"></div>
+          </div>
+          <div class="presets" role="group" aria-label="Band-pass presets">
+            <button type="button" class="preset" data-band="full">Full band</button>
+            <button type="button" class="preset" data-band="5,15">5-15 Hz</button>
+            <button type="button" class="preset" data-band="15,30">15-30 Hz</button>
+            <button type="button" class="preset" data-band="30,60">30-60 Hz</button>
+          </div>
+          <p id="bp-msg" class="msg" role="status" aria-live="polite"></p>
+        </fieldset>
+
+        <fieldset class="grp">
+          <legend>Colours</legend>
+          <div class="ctl"><label for="cmap">Colour map</label><select id="cmap"></select></div>
+          <label class="check" id="pol-wrap"><input type="checkbox" id="pol"> <span>Flip polarity (signed data)</span></label>
+          <div class="ctl">
+            <label for="gain">Gain <output id="gain-out" for="gain" class="num">1.00&times;</output></label>
+            <div class="row">
+              <input type="range" id="gain" min="-2" max="3" step="0.05" value="0" aria-describedby="gain-help">
+              <button type="button" class="mini" id="gain-reset" title="Reset gain to 1x">1&times;</button>
+            </div>
+            <p id="gain-help" class="hint">Display only, no new request. The colour bar shows the resulting limits.</p>
+          </div>
+        </fieldset>
+
+        <fieldset class="grp">
+          <legend>Amplitude spectrum</legend>
+          <div class="spec-wrap"><canvas id="spec" role="img" aria-label="Mean amplitude spectrum of the inline section window"></canvas></div>
+          <p class="spec-legend">
+            <span class="sw sw-raw" aria-hidden="true"></span> raw (dashed)
+            <span class="sw sw-fil" aria-hidden="true"></span> band-passed (solid)
+            <span id="leg-sd" hidden><span class="sw sw-sd" aria-hidden="true"></span> decomposition band, &minus;6 dB (shaded)</span>
+          </p>
+          <p id="spec-msg" class="hint">Mean spectrum of the traces in the inline section window.</p>
+        </fieldset>
+
+        <details class="grp info">
+          <summary>Survey details</summary>
+          <dl id="survey-dl"></dl>
+          <pre id="text-header" tabindex="0" aria-label="SEG-Y textual header"></pre>
+        </details>
+        <p class="hint help"><b>Mouse:</b> click or drag in a section to move the cross-hair. Hold <kbd>Shift</kbd> and drag to zoom into a rectangle. Double-click, or press &ldquo;Reset zoom&rdquo;, to see the full extent.</p>
+      </div>
+
+      <div class="seis-views" id="seis-views">
+        <section class="panel" id="p-3d" aria-labelledby="p-3d-title" hidden>
+          <header class="p-head v3-head">
+            <h2 id="p-3d-title"><span class="p-main">3D view</span> <span class="p-sub">drag to turn · wheel to zoom · shift-drag to move · click a section to move the cross-hair</span></h2>
+            <label class="v3-chk"><input type="checkbox" id="v3-il" checked> Inline</label>
+            <label class="v3-chk"><input type="checkbox" id="v3-xl" checked> Crossline</label>
+            <label class="v3-chk"><input type="checkbox" id="v3-map" checked> Time slice</label>
+            <label class="v3-chk"><input type="checkbox" id="v3-wells" checked> Wells</label>
+            <label class="v3-chk"><input type="checkbox" id="v3-hor" checked> Followed events</label>
+            <label class="v3-chk" for="v3-ve">Vertical</label><input type="range" id="v3-ve" min="1" max="20" step="1" value="10"><output id="v3-ve-out" class="num">10×</output>
+            <button type="button" class="mini" id="v3-reset">Reset view</button>
+          </header>
+          <div class="p-body">
+            <canvas id="v3-gl" role="img" aria-label="3D view of the inline, the crossline, the time slice, the wells and the followed events"></canvas>
+            <canvas id="v3-ov" aria-hidden="true"></canvas>
+          </div>
+          <p class="p-read" id="v3-note"></p>
+        </section>
+
+        <section class="panel" id="p-il" aria-labelledby="p-il-title">
+          <header class="p-head">
+            <h2 id="p-il-title"><span class="p-main">Inline</span> <span class="p-sub"></span></h2>
+            <span class="p-status" role="status"><span class="spinner" hidden></span><span class="p-load"></span><span class="p-time num"></span></span>
+            <button type="button" class="mini p-reset" disabled>Reset zoom</button>
+          </header>
+          <div class="p-body">
+            <canvas role="img" aria-label="Inline section"></canvas>
+            <div class="p-error" hidden><p></p><button type="button" class="mini">Retry</button></div>
+          </div>
+          <p class="p-read num" aria-live="off"></p>
+        </section>
+
+        <section class="panel" id="p-xl" aria-labelledby="p-xl-title">
+          <header class="p-head">
+            <h2 id="p-xl-title"><span class="p-main">Crossline</span> <span class="p-sub"></span></h2>
+            <span class="p-status" role="status"><span class="spinner" hidden></span><span class="p-load"></span><span class="p-time num"></span></span>
+            <button type="button" class="mini p-reset" disabled>Reset zoom</button>
+          </header>
+          <div class="p-body">
+            <canvas role="img" aria-label="Crossline section"></canvas>
+            <div class="p-error" hidden><p></p><button type="button" class="mini">Retry</button></div>
+          </div>
+          <p class="p-read num" aria-live="off"></p>
+        </section>
+
+        <section class="panel" id="p-map" aria-labelledby="p-map-title">
+          <header class="p-head">
+            <h2 id="p-map-title"><span class="p-main">Time slice</span> <span class="p-sub"></span></h2>
+            <span class="p-status" role="status"><span class="spinner" hidden></span><span class="p-load"></span><span class="p-time num"></span></span>
+            <button type="button" class="mini p-reset" disabled>Reset zoom</button>
+          </header>
+          <div class="p-body">
+            <canvas role="img" aria-label="Time slice map"></canvas>
+            <div class="p-error" hidden><p></p><button type="button" class="mini">Retry</button></div>
+          </div>
+          <p class="p-read num" aria-live="off"></p>
+        </section>
+      </div>
+
+      <p class="seis-foot"><b id="ds-name"></b> <span id="ds-dims"></span> <strong id="badge-synth" class="badge-warn" hidden>SYNTHETIC TEST CUBE</strong> <span id="ds-attr"></span></p>
+
+      <div id="fatal" class="seis-fatal" role="alert" hidden>
+        <div class="fatal-card">
+          <h2>Seismic is not available right now</h2>
+          <p id="fatal-msg"></p>
+          <button type="button" class="btn" id="fatal-retry">Try again</button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <aside class="side right" id="inspector" aria-label="Details of the selection">
+    <div class="insp-tabs" id="insp-tabs" role="tablist" aria-label="What to show about this well" hidden>
+      <button type="button" class="itab is-active" role="tab" aria-selected="true" data-insp="atlas">Screening and logs</button>
+      <button type="button" class="itab" role="tab" aria-selected="false" data-insp="tie">On seismic</button>
+    </div>
+    <div class="insp-pane" id="right" hidden></div>
+    <div class="insp-pane" id="insp-tie" hidden>
+      <div class="detail">
+        <div class="d-head"><div><h2 id="tie-name"></h2><p id="tie-sub"></p></div><div class="rowline"><button type="button" class="btn icon close" id="tie-close" aria-label="Close details">×</button></div></div>
+        <div id="wl-info"></div>
+
+        <h3>Well tie</h3>
+        <div class="wl-grid">
+          <label for="wl-shift">Bulk shift</label>
+          <div class="wl-row"><input type="range" id="wl-shift" min="-60" max="60" step="2" value="0"><output id="wl-shift-out" class="num">0 ms</output>
+            <button type="button" class="btn" id="wl-shift-0">Zero</button><button type="button" class="btn" id="wl-shift-best" title="The shift between -40 and +40 ms with the highest correlation inside the tie window">Best in window</button></div>
+          <label for="wl-wav">Wavelet</label>
+          <div class="wl-row"><select id="wl-wav"><option value="ricker">Ricker</option><option value="seis">From the seismic around the well (zero phase)</option></select>
+            <input type="range" id="wl-f" min="10" max="60" step="1" value="25" aria-label="Ricker frequency"><output id="wl-f-out" class="num">25 Hz</output></div>
+          <label for="wl-ph">Phase</label>
+          <div class="wl-row"><input type="range" id="wl-ph" min="-180" max="180" step="5" value="0"><output id="wl-ph-out" class="num">0°</output>
+            <label class="chk"><input type="checkbox" id="wl-pol"> Reverse polarity</label></div>
+          <label for="wl-win-a">Tie window, ms</label>
+          <div class="wl-row"><input type="number" id="wl-win-a" step="10" class="wl-num num" aria-label="Tie window from"><span>to</span><input type="number" id="wl-win-b" step="10" class="wl-num num" aria-label="Tie window to">
+            <button type="button" class="btn" id="wl-win-clay">Clay interval</button><button type="button" class="btn" id="wl-win-all">Whole log</button></div>
+        </div>
+        <canvas id="wl-tie" aria-label="Well tie: gamma ray, velocity, impedance, synthetic, seismic trace and local correlation against two-way time"></canvas>
+        <p id="wl-corr" class="small"></p>
+
+        <h3>Follow the clay away from the well</h3>
+        <p class="small muted">Press <b>Follow</b> on a top above: the nearest peak or trough is followed from the well through the whole cube. Or put the cross-hair on any event and press the button below. The tracker is simple and can jump a cycle across faults, so check the line on the sections.</p>
+        <div class="wl-row"><button type="button" class="btn" id="wl-follow-here">Follow the event at the cross-hair</button><span id="wl-track-msg" class="small muted"></span></div>
+        <div id="wl-hor"></div>
+
+        <h3>Thickness between two followed events</h3>
+        <div class="wl-row"><label for="wl-map-top">From</label><select id="wl-map-top"></select><label for="wl-map-base">down to</label><select id="wl-map-base"></select></div>
+        <canvas id="wl-map" aria-label="Thickness map between two followed events"></canvas>
+        <div id="wl-map-msg" class="small"></div>
+        <p id="wl-src" class="small muted"></p>
+      </div>
+    </div>
+  </aside>
+</main>
+
+<div class="sheet-root" id="gc-sheet" role="dialog" aria-modal="true" aria-labelledby="gc-title" hidden>
+  <div class="sheet">
+    <header class="sheet-head">
+      <div><h2 id="gc-title">Green Clay: how the layer was made and tested</h2><p>Where the top of the Green Clay sits, learned from what the operators wrote in their own well reports</p></div>
+      <button type="button" class="btn icon close" id="gc-close" aria-label="Close">×</button>
+    </header>
+    <div class="sheet-body">
+      <section class="gc-kpis" id="gc-kpis" aria-live="polite"></section>
+      <section class="gc-grid">
+        <div class="card"><h3>Predicted against reported</h3><p class="sub">Each dot is one site. Its field was left out when the model was fitted.</p><div id="gc-scatter" class="chart"></div></div>
+        <div class="card"><h3>Against simpler guesses</h3><p class="sub">Average miss in metres, with the whole field left out.</p><div id="gc-bars" class="chart"></div></div>
+        <div class="card"><h3>What the logs show</h3><p class="sub" id="gc-logs-sub"></p><div id="gc-stack" class="chart"></div></div>
+      </section>
+      <section class="card">
+        <h3>How it works</h3>
+        <ol class="steps">
+          <li><b>Find the name.</b> A search through 2.75 million pages of public well reports for the unit the drillers call the Green Clay.</li>
+          <li><b>Take the depths.</b> Where a report gives the top in metres of true vertical depth, that number becomes an answer key. Each one keeps its file and page.</li>
+          <li><b>Tie to the public tops.</b> Each site is compared with the Hordaland and Rogaland Group tops in the nearest vertical exploration well.</li>
+          <li><b>Fit one line.</b> The Green Clay reaches down to the Rogaland top, and it is thicker where the Hordaland Group is thicker.</li>
+          <li><b>Test on unseen fields.</b> Every field is left out in turn and predicted from the others.</li>
+        </ol>
+        <p class="formula num" id="gc-formula"></p>
+      </section>
+      <section class="card">
+        <h3>The answer key: what the reports say</h3>
+        <p class="sub" id="gc-sites-sub"></p>
+        <div class="table-wrap"><table id="gc-sites"></table></div>
+      </section>
+      <section class="card" id="gc-cases-card">
+        <h3>Where clay has been used as a barrier, and where it did not hold</h3>
+        <p class="sub" id="gc-cases-sub"></p>
+        <div class="table-wrap"><table id="gc-cases"></table></div>
+        <p class="note" id="gc-cases-note"></p>
+      </section>
+      <section class="card limits">
+        <h3>Limits</h3>
+        <ul>
+          <li><b>Small answer key.</b> <span id="gc-lim-n"></span> All of it is in the northern North Sea. Outside those fields the model is untested, and the map marks that with rings instead of filled dots.</li>
+          <li><b>Depths were read by pattern from scanned text.</b> The quote behind every site was read once and two errors were removed, but nobody has checked them against the original pages. A few are planned depths from drilling programmes, not measured ones.</li>
+          <li><b>The base is an assumption.</b> The model lets the Green Clay reach down to the top of the Rogaland Group. Some reports name a brown clay or an Eocene sand in between.</li>
+          <li><b>Reference depths are approximate.</b> Group tops come from exploration wells treated as vertical, up to 6 km from the site, and rig-floor heights differ by tens of metres.</li>
+          <li><b>The log check is support, not proof.</b> Lower resistivity in the predicted interval fits a water-rich, swelling clay, but other causes would look the same.</li>
+          <li><b>The list of cases is short and skewed.</b> It comes from a keyword search and one reading of each passage. Plugging reports are rare in the open archive, so most real cases are missing, and for the planned ones the result is not public.</li>
+          <li><b>Open data only.</b> Public reports from Diskos (Zenodo 10775273), FactPages and the FORCE 2020 logs. Built during the hackathon on 19 November 2026 with AI assistance. No specialist has reviewed it.</li>
+        </ul>
+      </section>
+    </div>
+  </div>
+</div>
+
+<div class="modal-root" id="modal-root" hidden></div>
+<div class="tip" id="tip" hidden></div>
+
+<noscript><p style="padding:2rem">Nature's Plug needs JavaScript. Serve this folder over http, for example with <code>python3 -m http.server</code>, and open it in a browser.</p></noscript>
+<script src="seismic/wells.js"></script>
+<script src="seismic/view3d.js"></script>
+<script src="seismic/app.js"></script>
+<script type="module" src="js/main.js"></script>
 </body>
 </html>

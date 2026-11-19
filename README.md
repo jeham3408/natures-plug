@@ -10,7 +10,7 @@ Nature's Plug screens open data for it: well logs from 117 wells, leak-off tests
 
 ## Run it
 
-No build step and no dependencies. Serve the folder and open it. It is one page with four views (atlas, atlas beside seismic, seismic and 3D, Green Clay); the atlas alone is `atlas.html`:
+No build step and no dependencies. Serve the folder and open it. It is one app on one page: the map and the seismic share the middle of the page, the panel on the right always describes the selected well, and a well chosen anywhere is the same well everywhere.
 
 ```bash
 python3 -m http.server 8000
@@ -18,12 +18,14 @@ python3 -m http.server 8000
 
 Then go to <http://localhost:8000>. It works offline. The folder can also be published as it is on GitHub Pages.
 
-The seismic viewer (`seismic/`) also needs its Python back end and the seismic cubes, which sit on a separate Linux machine and are not in this repository. `./start.sh` starts the back end there and forwards it, and the whole app (atlas, Green Clay predictor and seismic viewer) is then at <http://127.0.0.1:8777>. `./start.sh local` is the same as the command above. Without the back end every page works except the seismic viewer, which says what is missing.
+The seismic part also needs its Python back end and the seismic cubes, which sit on a separate Linux machine and are not in this repository. `./start.sh` starts the back end there and forwards it; the app is then at <http://127.0.0.1:8777>. `./start.sh local` is the same as the command above. Without the back end everything works except the seismic, and the seismic stage says what is missing.
 
 ## What you can do
 
-- **Map.** Every wellbore left to plug, coloured by what the nearest assessed well says. Click a field, a wellbore or a well.
-- **Log level and formation level.** Log level uses the wells with open logs. Formation level runs the same pressure test on 729 exploration wells using formation tops only.
+- **Map.** Every wellbore left to plug, coloured by what the nearest assessed well says. Click a field, a wellbore or a well. The outlines of the open seismic cubes are on the map; click one to open it.
+- **Three levels on the same map.** Log level uses the wells with open logs. Formation level runs the same pressure test on 729 exploration wells using formation tops only. Green Clay colours every well by the predicted depth to the top of the Green Clay and marks the report sites it was learned from.
+- **Map, seismic or both.** The switch in the top bar puts the seismic sections and the 3D view where the map is, or both above each other. The selected well stays selected.
+- **One panel for the selected well.** Screening verdict, logs, the predicted Green Clay interval and report quotes; and for the wells inside a seismic cube a second tab, **On seismic**, with the well tie, the followed events and the thickness map.
 - **Well panel.** Gamma ray, resistivity, sonic, density and caliper against depth, the clay signature, and the pressure the barrier must hold against what the leak-off tests give. Scroll to zoom the depth.
 - **Report quotes.** Keyword matches from the well's own reports, with file and page. Click a quote to find its depth in the logs.
 - **Assumptions.** Every threshold is a slider and the map is recalculated at once. Each well takes a measured pore pressure.
@@ -59,7 +61,7 @@ Print them with `npm run summary`.
 
 ## Green Clay predictor
 
-Built during the hackathon, on 19 November 2026. Open [`greenclay/`](greenclay/) in the served app, or use the button in the top bar.
+Built during the hackathon, on 19 November 2026. It is the **Green Clay** level of the map; every well card shows the predicted interval, and **How it was made and tested** in the legend opens the evidence: the charts, the answer key and the documented cases.
 
 Operators on Troll, Oseberg, Brage and Visund call a swelling Eocene clay in the Hordaland Group the Green Clay, and they write its depth in their drilling and completion reports. The predictor uses those sentences as an answer key.
 
@@ -97,7 +99,7 @@ Open data has no bond logs, so the screen cannot be compared with verified barri
 
 ## Seismic and 3D: wells on seismic
 
-Built during the hackathon, on 19 November 2026. It is the **Seismic and 3D** view of the app, and **Atlas + seismic** puts it beside the map: choosing a well in one shows it in the other. It shows a 3D seismic cube as an inline, a crossline and a time slice, linked by cross-hairs, with band-pass filtering, an amplitude spectrum, RMS amplitude, envelope, instantaneous frequency and simple spectral decomposition. The work is done by the back end in [`seismic/server/`](seismic/server/README.md) (numpy and scipy).
+Built during the hackathon, on 19 November 2026. It is the **Seismic and 3D** side of the stage (the switch in the top bar, **On seismic** in a well card, or a click on a cube outline on the map). Choosing a well anywhere moves the seismic to it, and to its cube if another one is shown. It shows a 3D seismic cube as an inline, a crossline and a time slice, linked by cross-hairs, with band-pass filtering, an amplitude spectrum, RMS amplitude, envelope, instantaneous frequency and simple spectral decomposition. The work is done by the back end in [`seismic/server/`](seismic/server/README.md) (numpy and scipy).
 
 - **3D view.** The three sections as planes in one scene, with the wells, their tops and the followed events as surfaces. Drag to turn, wheel to zoom, click a plane to move the cross-hair. Plain WebGL, no library.
 - **Logs and tops on the sections.** Gamma ray, sonic velocity, impedance, resistivity or density along the well, the group tops from FactPages and the top of the Green Clay from the predictor, all in two-way time.
@@ -184,13 +186,13 @@ The files under `data/` are derived from these sources and keep their licences. 
 ## Repository layout
 
 ```
-index.html                the one-page app: one bar, the views below as frames that talk to each other
-atlas.html, css/, js/     the atlas (vanilla JavaScript modules, canvas map, SVG log tracks)
+index.html, css/, js/     the app: one page (vanilla JavaScript modules, canvas map, SVG log tracks)
 js/engine.js              the screening logic
+js/workspace.js           map and seismic on one stage, one selected well, the tabs of the right panel
+js/greenclay.js           the Green Clay level: map colours, well cards and the evidence sheet
 data/                     static JSON the app loads (53 MB, most of it loaded on demand)
 pipeline/                 scripts that build data/ from the raw downloads
-greenclay/                the Green Clay predictor page (built during the hackathon)
-seismic/                  the seismic and 3D view (app.js sections, wells.js wells and tie, view3d.js); seismic/server/ is its Python back end (built during the hackathon)
+seismic/                  the seismic part of the page (app.js sections, wells.js wells and tie, view3d.js) and seismic/server/, its Python back end (built during the hackathon)
 start.sh                  starts the whole app, including the seismic back end on the Linux machine
 tests/, tools/            engine and data tests and a command-line summary (Node 20 or newer)
 talk/                     the four-minute presentation: eleven slides over a 3D scene, see talk/README.md
@@ -210,7 +212,7 @@ The seismic back end has its own tests (Python 3 with numpy, scipy, Pillow and p
 
 ## What was prepared before the hackathon
 
-The data pipeline, this first version of the app and the slides in [`talk/`](talk/README.md) were prepared on 17 and 18 November 2026, before the FORCE VibeCode Hackathon in Stavanger began, with AI coding assistance (Claude Code). The Green Clay predictor, the seismic and 3D view and the one-page shell were built during the hackathon, on 19 November, also with AI assistance. The organisers asked participants to bring data and ideas and to download large data sets in advance. Everything is built from open data only.
+The data pipeline, this first version of the app and the slides in [`talk/`](talk/README.md) were prepared on 17 and 18 November 2026, before the FORCE VibeCode Hackathon in Stavanger began, with AI coding assistance (Claude Code). The Green Clay level, the seismic and 3D part and the single-page workspace that holds everything together were built during the hackathon, on 19 November, also with AI assistance. The organisers asked participants to bring data and ideas and to download large data sets in advance. Everything is built from open data only.
 
 ## Where it should go next
 

@@ -3,6 +3,7 @@ import { DEFAULTS, LOG, FM, distKm } from "./engine.js";
 import { loadWell, loadDocs } from "./data.js";
 import { createTracks } from "./tracks.js";
 import { $, $$, esc, fmt, title, strat, docType, factUrl } from "./util.js";
+import { wbCard, exCard, tips as gcTips, rampCss, D0, D1 } from "./greenclay.js";
 
 const LOG_NAME = ["not covered", "fails", "passes"], LOG_CLS = ["none", "fail", "pass"];
 const FM_NAME = ["not covered", "absent", "thin", "present"], FM_CLS = ["none", "fail", "thin", "pass"];
@@ -31,6 +32,12 @@ export function createPanels(app) {
   function renderKpis() {
     const r = app.state.result, T = r.totals, P = app.state.P, log = app.state.level === "log";
     const k = (n, cls, text, short) => `<div class="kpi"><b>${cls ? `<i class="dot ${cls}"></i>` : ""}${fmt(n)}</b><span><span class="long">${text}</span><span class="short">${short}</span></span></div>`;
+    if (app.state.level === "gc" && data.gc) {
+      const G = data.gc, R = G.rule, kt = (b, text, short) => `<div class="kpi"><b>${b}</b><span><span class="long">${text}</span><span class="short">${short}</span></span></div>`;
+      kpis.innerHTML = kt(fmt(R.named_wellbores), "wellbores whose reports name the Green Clay", "reports name it") + kt(`${R.sites} sites`, `in ${R.fields} fields give its top as a depth`, "with a depth")
+        + kt(`${fmt(G.cv.field.line.mae)} m`, "average miss on a field the model has not seen", "average miss") + kt(fmt(G.counts.named || 0), "wellbores left to plug within 10 km of such a report", "left to plug nearby");
+      return;
+    }
     kpis.innerHTML = log
       ? k(T.left, "", "wellbores left to plug", "left to plug") + k(T.log[2], "pass", "near a log well that passes", "pass") + k(T.log[1], "fail", "near a log well that fails", "fail") + k(T.log[0], "none", `no assessed log well within ${P.radiusKm} km`, "not covered")
       : k(T.left, "", "wellbores left to plug", "left to plug") + k(T.fm[3], "pass", "clay group in the pressure window", "clay in window") + k(T.fm[1] + T.fm[2], "fail", `less than ${P.formationMin} m of it in the window`, "too little") + k(T.fm[0], "none", `no assessed well within ${P.radiusKm} km`, "not covered");
@@ -40,11 +47,24 @@ export function createPanels(app) {
     const r = app.state.result, T = r.totals, P = app.state.P, log = app.state.level === "log", m = app.map;
     const row = (cls, text, n) => `<div class="row"><span class="sym"><i class="dot ${cls}"></i></span>${text}<b>${fmt(n)}</b></div>`;
     const chk = (key, text) => `<label><input type="checkbox" data-show="${key}" ${m && m.isShown(key) ? "checked" : ""}>${text}</label>`;
+    const nCubes = Object.keys(data.seis.cubes).length, cubesChk = nCubes ? chk("cubes", `Open seismic cubes (${nCubes})`) : "";
+    if (app.state.level === "gc" && data.gc) {
+      const G = data.gc, C = G.counts;
+      legend.innerHTML = `<h4>Predicted top of the Green Clay</h4>
+        <div class="gc-ramp"><span>${fmt(D0)} m</span><i style="background:${rampCss()}"></i><span>${fmt(D1)} m</span></div>
+        <div class="row"><span class="sym"><i class="gc-dot"></i></span>A report names it within 10 km<b>${fmt(C.named || 0)}</b></div>
+        <div class="row"><span class="sym"><i class="gc-dot ring"></i></span>Model only: nothing shows it exists here<b>${fmt(C.rule || 0)}</b></div>
+        <div class="row"><span class="sym"><i class="dot none"></i></span>No prediction<b>${fmt(C.none || 0)}</b></div>
+        <div class="row"><span class="sym"><i class="gc-site"></i></span>Report site with a quoted depth<b>${fmt(G.sites.length)}</b></div>
+        <hr><div class="rowline"><button type="button" class="btn" data-gc-open>How it was made and tested</button></div>`
+        + chk("l1", "Exploration wells") + cubesChk + chk("quads", "Quadrants");
+      return;
+    }
     legend.innerHTML = `<h4>Wellbores left to plug</h4>` + (log
       ? row("pass", `At least ${P.minLen} m clay in the pressure window`, T.log[2]) + row("fail", "Less than that", T.log[1]) + row("none", "No assessed log well nearby", T.log[0])
       : row("pass", `At least ${P.formationMin} m of clay group in the window`, T.fm[3]) + row("thin", "Less than that", T.fm[2]) + row("fail", "Clay group above the window", T.fm[1]) + row("none", "No assessed well nearby", T.fm[0]))
       + `<hr><div class="row"><span class="sym"><i class="diamond"></i></span>Well with open logs<b>${fmt(T.controls.all)}</b></div>`
-      + chk("l1", `Formation-level wells (${fmt(T.layer1.assessed)} assessed)`) + chk("co2", "CO₂ storage licences") + chk("quads", "Quadrants");
+      + chk("l1", `Formation-level wells (${fmt(T.layer1.assessed)} assessed)`) + cubesChk + chk("co2", "CO₂ storage licences") + chk("quads", "Quadrants");
   }
   legend.addEventListener("change", (e) => {
     const k = e.target.dataset.show;
@@ -217,8 +237,8 @@ export function createPanels(app) {
   function markQuote(i) { $$("#q-hits .quote", right).forEach((li) => li.classList.toggle("is-active", Number(li.dataset.q) === i)); }
 
   // ------------------------------------------------------------------ right: shared bits
-  // Wells that lie inside an open seismic cube get a link to the seismic viewer (needs ./start.sh).
-  const seisLink = (name) => { const s = app.data.seis && app.data.seis[name]; return s ? `<a class="btn link" data-seis-ds="${esc(s.ds)}" data-seis-well="${esc(name)}" href="seismic/?ds=${encodeURIComponent(s.ds)}&well=${encodeURIComponent(name)}" title="${esc(s.cube || "")}: logs, tops and well tie on the seismic">On seismic →</a>` : ""; };
+  // Wells that lie inside an open seismic cube get a button that shows them on seismic (the workspace handles the click).
+  const seisLink = (name) => { const w = data.seis.wells[name]; return w ? `<button type="button" class="btn" data-seis-well="${esc(name)}" title="${esc(w.cube || "")}: logs, tops and well tie on the seismic">On seismic →</button>` : ""; };
   const head = (name, sub, pill) => `<div class="d-head"><div><h2>${esc(name)}</h2><p>${sub}</p></div><div class="rowline">${seisLink(name)}${pill || ""}<button type="button" class="btn icon close" id="d-close" aria-label="Close details">×</button></div></div>`;
   const fact = (k, v) => `<div class="fact"><span>${k}</span><b>${v}</b></div>`;
   const logPill = (a, big) => {
@@ -265,6 +285,7 @@ export function createPanels(app) {
       <div class="rowline"><div class="seg"><button type="button" data-preset="over">Overburden</button><button type="button" data-preset="full">Whole well</button></div><span class="small muted">Scroll to zoom the depth, drag to move.</span></div>
       <div class="tracks" id="tracks"><p class="muted small" style="padding:14px">Loading logs…</p></div>
       <div class="trk-legend"><span><i class="sw l1"></i>Deep resistivity, measured curves</span><span><i class="sw l3"></i>Medium resistivity, bit size</span><span><i class="sw wash"></i>Clay signature</span><span><i class="sw pass"></i>Clay inside the pressure window</span><span><i class="sw l2"></i>Pressure needed</span><span><i class="sw l1"></i>Leak-off tests</span></div>
+      ${data.gc ? exCard(data.gc, c.name) : ""}
       <h3>From the well reports</h3><div id="quotes"><p class="muted small">Loading…</p></div>
       <p class="small"><a href="${factUrl.exp(c.npdid)}" target="_blank" rel="noopener">Open ${esc(c.name)} in FactPages</a></p></div>`;
     let well;
@@ -322,6 +343,7 @@ export function createPanels(app) {
       ? `<b>Formation level: clay group ${FM_NAME[r.cls1[i]]}.</b> From ${esc(data.layer1[k].n)}, ${fmt(r.l1Km[i], 1)} km away: ${fmt(r.l1[k].inWindow)} m of Hordaland or Rogaland Group inside the pressure window above the ${esc(strat(r.l1[k].zone))}.`
       : `<b>Formation level: not covered.</b> No assessed exploration well within ${P.radiusKm} km.`}</div>`;
     h += `<div class="facts">${fact("Content", w.content[i] >= 0 ? esc(w.contents[w.content[i]].toLowerCase()) : "–")}${fact("Subsea", w.subsea[i] ? "Yes" : "No")}${fact("Depth", `${fmt(w.md[i])} m MD${w.tvd[i] ? `, ${fmt(w.tvd[i])} m TVD` : ""}`)}${fact("Water depth", w.wd[i] != null ? `${fmt(w.wd[i])} m` : "–")}${fact("Drilled by", w.operator[i] >= 0 ? esc(w.operators[w.operator[i]]) : "–")}</div>`;
+    if (data.gc) h += wbCard(data.gc, w, i);
     const near = data.nb.ctl[i].slice(0, 4);
     if (near.length) h += `<h3>Nearest wells with open logs</h3><div class="neigh">${near.map(([d, n]) => `<button type="button" data-go="ctl|${esc(data.controls[n].name)}"><span>${esc(data.controls[n].name)}</span><span>${fmt(d, 1)} km</span><span>${logPill(r.ctl[n])}</span></button>`).join("")}</div>`;
     const nearF = data.nb.l1[i].filter(([, n]) => r.l1[n].assessed).slice(0, 4);
@@ -346,6 +368,7 @@ export function createPanels(app) {
     const span = (x) => (x ? `${fmt(x[0])} to ${fmt(x[1])} m` : "not present");
     h += `<div class="facts">${fact("Hordaland Group", span(w.ho))}${fact("Rogaland Group", span(w.ro))}${a.assessed ? fact("Pore pressure used", `${a.pp.toFixed(2)} g/cm³`) : ""}${fact("Leak-off tests", w.lot.length ? w.lot.map((l) => `${l[1].toFixed(2)} at ${fmt(l[0])} m`).join(", ") : "none")}${fact("Mud in the clay groups", w.mud === "WBM" ? "Water-based" : w.mud === "OBM" ? "Oil-based" : w.mud === "mixed" ? "Both types" : "Not known")}</div>`;
     if (w.lg) h += `<div class="rowline"><button type="button" class="btn" data-go="ctl|${esc(w.n)}">This well has open logs: open the log panel</button></div>`;
+    if (data.gc) h += exCard(data.gc, w.n);
     h += `<h3>From the well reports</h3><div id="quotes"><p class="muted small">${w.d ? "Loading…" : "No report text for this well in the open Diskos set."}</p></div>`;
     h += `<p class="small"><a href="${factUrl.exp(w.id)}" target="_blank" rel="noopener">Open ${esc(w.n)} in FactPages</a></p>`;
     tracks?.destroy(); tracks = null;
@@ -377,7 +400,12 @@ export function createPanels(app) {
     },
     /** Tooltip text for something under the pointer on the map. */
     mapTip(h) {
-      const r = app.state.result;
+      const r = app.state.result, G = app.state.level === "gc" ? data.gc : null;
+      if (h.type === "site") return gcTips.site(data.gc, h.i);
+      if (h.type === "cube") return `<b>Seismic cube: ${esc(app.map.cubeName(h.i))}</b><br><span class="sub">Click to open it. The wells inside it can be seen on seismic.</span>`;
+      if (G && h.type === "wb") return `<b>${esc(data.wb.name[h.i])}</b> <span class="sub">· wellbore left to plug</span><br>${gcTips.wb(G, data.wb, h.i)}`;
+      if (G && h.type === "ctl") return `<b>${esc(data.controls[h.i].name)}</b> <span class="sub">· well with open logs</span><br>${gcTips.ex(G, data.controls[h.i].name)}`;
+      if (G && h.type === "l1") return `<b>${esc(data.layer1[h.i].n)}</b> <span class="sub">· exploration well</span><br>${gcTips.ex(G, data.layer1[h.i].n)}`;
       if (h.type === "wb") {
         const i = h.i, w = data.wb, f = w.field[i] >= 0 ? title(w.fields[w.field[i]]) : "no field", log = app.state.level === "log";
         const j = log ? r.ctlIdx[i] : r.l1Idx[i];

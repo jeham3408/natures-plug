@@ -1,120 +1,13 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Green Clay predictor · Nature's Plug</title>
-<script>
-  (function () {
-    var t = null;
-    try { t = localStorage.getItem("np-theme"); } catch (e) {}
-    if (!t) t = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-    document.documentElement.dataset.theme = t;
-    if (window.parent !== window) document.documentElement.classList.add("embedded");
-  })();
-</script>
-<link rel="stylesheet" href="greenclay.css">
+<title>Nature's Plug</title>
+<meta http-equiv="refresh" content="0; url=../#greenclay">
+<script>location.replace("../#greenclay");</script>
 </head>
 <body>
-<header class="top">
-  <a class="back" href="../" title="Back to the atlas">← Nature's Plug</a>
-  <div class="title">
-    <h1>Green Clay predictor</h1>
-    <p>Where the top of the Green Clay sits, learned from what the operators wrote in their own well reports</p>
-  </div>
-  <a class="back" href="../seismic/" title="Open 3D seismic cube (needs ./start.sh)">Seismic viewer →</a>
-  <button class="btn" id="theme" type="button" aria-label="Switch between light and dark theme">Theme</button>
-</header>
-
-<main>
-  <section class="kpis" id="kpis" aria-live="polite"></section>
-
-  <section class="grid">
-    <div class="card map-card">
-      <div class="card-head">
-        <h2>Predicted top of the Green Clay</h2>
-        <div class="seg" role="group" aria-label="What the map shows">
-          <button type="button" data-mode="ex" class="on">Exploration wells</button>
-          <button type="button" data-mode="wb">Wellbores left to plug</button>
-        </div>
-      </div>
-      <div class="map-wrap" id="map-wrap">
-        <canvas id="map" aria-label="Map of predicted depth to the top of the Green Clay"></canvas>
-        <div class="tip" id="tip" hidden></div>
-        <div class="map-btns">
-          <button class="btn" type="button" data-view="north">Northern North Sea</button>
-          <button class="btn" type="button" data-view="all">Whole shelf</button>
-        </div>
-      </div>
-      <div class="legend" id="legend"></div>
-      <p class="note">Drag to move, scroll to zoom, point at a well for its numbers. Filled dots lie within 10 km of a wellbore whose report names the Green Clay. Hollow dots are the model carried outside that area, where nothing shows that the unit exists.</p>
-    </div>
-
-    <div class="side">
-      <div class="card">
-        <h2>Look up a wellbore left to plug</h2>
-        <input id="find" type="search" list="wb-list" placeholder="For example 31/2-S-12 H" autocomplete="off" spellcheck="false" aria-label="Wellbore name">
-        <datalist id="wb-list"></datalist>
-        <div id="found" class="found muted">Type a wellbore name to see where the model puts the Green Clay.</div>
-      </div>
-      <div class="card">
-        <h2>How it works</h2>
-        <ol class="steps">
-          <li><b>Find the name.</b> A search through 2.75 million pages of public well reports for the unit the drillers call the Green Clay.</li>
-          <li><b>Take the depths.</b> Where a report gives the top in metres of true vertical depth, that number becomes an answer key. Each one keeps its file and page.</li>
-          <li><b>Tie to the public tops.</b> Each site is compared with the Hordaland and Rogaland Group tops in the nearest vertical exploration well.</li>
-          <li><b>Fit one line.</b> The Green Clay reaches down to the Rogaland top, and it is thicker where the Hordaland Group is thicker.</li>
-          <li><b>Test on unseen fields.</b> Every field is left out in turn and predicted from the others.</li>
-        </ol>
-        <p class="formula num" id="formula"></p>
-      </div>
-    </div>
-  </section>
-
-  <section class="grid three">
-    <div class="card">
-      <h2>Predicted against reported</h2>
-      <p class="sub">Each dot is one site. Its field was left out when the model was fitted.</p>
-      <div id="scatter" class="chart"></div>
-    </div>
-    <div class="card">
-      <h2>Against simpler guesses</h2>
-      <p class="sub">Average miss in metres, with the whole field left out.</p>
-      <div id="bars" class="chart"></div>
-    </div>
-    <div class="card">
-      <h2>What the logs show</h2>
-      <p class="sub" id="logs-sub"></p>
-      <div id="stack" class="chart"></div>
-    </div>
-  </section>
-
-  <section class="card">
-    <h2>The answer key: what the reports say</h2>
-    <p class="sub" id="sites-sub"></p>
-    <div class="table-wrap"><table id="sites"></table></div>
-  </section>
-
-  <section class="card" id="cases-card">
-    <h2>Where clay has been used as a barrier, and where it did not hold</h2>
-    <p class="sub" id="cases-sub"></p>
-    <div class="table-wrap"><table id="cases"></table></div>
-    <p class="note" id="cases-note"></p>
-  </section>
-
-  <section class="card limits">
-    <h2>Limits</h2>
-    <ul>
-      <li><b>Small answer key.</b> <span id="lim-n"></span> All of it is in the northern North Sea. Outside those fields the model is untested, and the map marks that with hollow dots.</li>
-      <li><b>Depths were read by pattern from scanned text.</b> The quote behind every site was read once and two errors were removed, but nobody has checked them against the original pages. A few are planned depths from drilling programmes, not measured ones.</li>
-      <li><b>The base is an assumption.</b> The model lets the Green Clay reach down to the top of the Rogaland Group. Some reports name a brown clay or an Eocene sand in between.</li>
-      <li><b>Reference depths are approximate.</b> Group tops come from exploration wells treated as vertical, up to 6 km from the site, and rig-floor heights differ by tens of metres.</li>
-      <li><b>The log check is support, not proof.</b> Lower resistivity in the predicted interval fits a water-rich, swelling clay, but other causes would look the same.</li>
-      <li><b>The list of cases is short and skewed.</b> It comes from a keyword search and one reading of each passage. Plugging reports are rare in the open archive, so most real cases are missing, and for the planned ones the result is not public.</li>
-      <li><b>Open data only.</b> Public reports from Diskos (Zenodo 10775273), FactPages and the FORCE 2020 logs. Built during the hackathon on 19 November 2026 with AI assistance. No specialist has reviewed it.</li>
-    </ul>
-  </section>
-</main>
-<script src="greenclay.js"></script>
+<p style="font:14px system-ui, sans-serif; padding:2rem">The Green Clay predictor is now a layer of the Nature's Plug map. <a href="../#greenclay">Open it there</a>.</p>
 </body>
 </html>

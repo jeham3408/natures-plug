@@ -1,6 +1,7 @@
 // Loads the static JSON files under data/ and builds the lookups the UI needs.
 import { prepareNeighbours } from "./engine.js";
 import { safeId } from "./util.js";
+import { prepare as prepareGreenClay } from "./greenclay.js";
 
 async function get(path) {
   const r = await fetch(path);
@@ -15,8 +16,11 @@ export async function loadAll(onProgress) {
   const [meta, wb, controls, layer1, fieldGeo, geo, validation] = parts;
   geo.quadrants.forEach((q) => { q[0] = String(q[0]).trim(); });
   const data = { meta, wb, controls, layer1, fieldGeo, geo, validation };
-  // Optional: wells that can be opened on seismic in the seismic viewer (written by seismic/server/prep_wells.py).
-  data.seis = await get("data/seismic_wells.json").catch(() => ({}));
+  // Wells that lie inside an open seismic cube, and the outlines of the cubes (written by seismic/server/prep_wells.py).
+  const seis = await get("data/seismic_wells.json").catch(() => null);
+  data.seis = { wells: (seis && seis.wells) || {}, cubes: (seis && seis.cubes) || {} };
+  // The Green Clay model: predicted top for every exploration well and every wellbore left to plug, and the report sites.
+  data.gc = await get("data/greenclay.json").then(prepareGreenClay).catch(() => null);
   data.nb = prepareNeighbours(wb, controls, layer1);
   onProgress?.(1);
 
@@ -36,6 +40,9 @@ function cached(path) {
   if (!cache.has(path)) cache.set(path, get(path).catch((e) => { cache.delete(path); throw e; }));
   return cache.get(path);
 }
+
+/** Documented cases of clay used as a barrier (read by hand from the reports), for the Green Clay evidence sheet. */
+export const loadBarrier = () => cached("data/barrier.json");
 
 /** Full curves, tops, casing and report quotes for one control well. */
 export const loadWell = (name) => cached(`data/wells/${safeId(name)}.json`);

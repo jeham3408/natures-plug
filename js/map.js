@@ -1,6 +1,8 @@
-// Canvas map: land, quadrants, field outlines, wellbores left to plug, control wells, formation-level wells.
+// Canvas map: land, quadrants, field outlines, wellbores left to plug, control wells, formation-level wells,
+// the outlines of the open seismic cubes and, at the Green Clay level, the predicted top and the report sites.
 // No tiles and no libraries, so it works offline.
 import { clamp, cssVars, reducedMotion, title } from "./util.js";
+import { ramp } from "./greenclay.js";
 
 const D2R = Math.PI / 180;
 const my = (lat) => (180 / Math.PI) * Math.log(Math.tan(Math.PI / 4 + (lat * D2R) / 2));
@@ -20,7 +22,7 @@ const ring = (pts) => {
 export function createMap(canvas, data, on) {
   const ctx = canvas.getContext("2d");
   const view = { cx: 3.4, cy: my(59.4), k: 60 };
-  const show = { l1: false, co2: false, quads: true };
+  const show = { l1: false, co2: false, quads: true, cubes: true };
   let W = 0, H = 0, dpr = 1, result = null, level = "log", sel = null, hover = null, col = {}, raf = 0, anim = 0;
 
   // ---- geometry in map units (x = longitude in degrees, y = Mercator latitude in the same units)
@@ -38,6 +40,13 @@ export function createMap(canvas, data, on) {
   const wb = P(data.wb.lat, data.wb.lon);
   const ctl = P(data.controls.map((c) => c.lat ?? 0), data.controls.map((c) => c.lon ?? 0));
   const l1 = P(data.layer1.map((w) => w.la), data.layer1.map((w) => w.lo));
+  // Green Clay model: which exploration well of the model each map well is, and the report sites
+  const gc = data.gc;
+  const gcL1 = gc ? data.layer1.map((w) => gc.exByName.get(w.n) ?? -1) : [];
+  const gcCtl = gc ? data.controls.map((c) => gc.exByName.get(c.name) ?? -1) : [];
+  const sites = gc ? P(gc.sites.map((s) => s.la), gc.sites.map((s) => s.lo)) : { x: [], y: [] };
+  // open seismic cubes: outline and a short name
+  const cubes = Object.entries(data.seis.cubes).map(([id, c]) => ({ id, name: c.short || c.name || id, ...ring(c.outline) }));
 
   const sx = (x) => (x - view.cx) * view.k + W / 2;
   const sy = (y) => (view.cy - y) * view.k + H / 2;
@@ -45,7 +54,7 @@ export function createMap(canvas, data, on) {
   const wy = (py) => view.cy - (py - H / 2) / view.k;
 
   function theme() {
-    col = cssVars(["sea", "land", "land-line", "grid", "field", "pass", "fail", "thin", "none", "panel", "ink", "ink-2", "muted", "accent"]);
+    col = cssVars(["sea", "land", "land-line", "grid", "field", "pass", "fail", "thin", "none", "panel", "ink", "ink-2", "muted", "accent", "site"]);
     render();
   }
 
@@ -111,7 +120,7 @@ export function createMap(canvas, data, on) {
       if (!vis(f) || !f.rings.length) continue;
       ctx.beginPath(); for (const r of f.rings) path(r);
       let tint = null;
-      if (result && f.wi >= 0) {
+      if (result && f.wi >= 0 && level !== "gc") {
         const F = result.fields[f.wi], a = level === "log" ? F.log : F.fm;
         let best = 0; for (let c = 1; c < a.length; c++) if (a[c] > a[best]) best = c;
         if (a[best] > 0) tint = classColor(best);
@@ -124,8 +133,34 @@ export function createMap(canvas, data, on) {
       if (f) { ctx.beginPath(); for (const r of f.rings) path(r); ctx.strokeStyle = col.ink; ctx.lineWidth = 2; ctx.stroke(); }
     }
 
+    // open seismic cubes: where the wells can be seen on seismic
+    if (show.cubes && cubes.length) {
+      ctx.font = "600 10.5px system-ui, -apple-system, 'Segoe UI', sans-serif"; ctx.textAlign = "left"; ctx.textBaseline = "bottom";
+      for (let k = 0; k < cubes.length; k++) {
+        const c = cubes[k]; if (!vis(c)) continue;
+        const on = hover && hover.type === "cube" && hover.i === k;
+        ctx.beginPath(); path(c);
+        ctx.fillStyle = col.accent; ctx.globalAlpha = on ? 0.16 : 0.06; ctx.fill(); ctx.globalAlpha = 1;
+        ctx.setLineDash([6, 4]); ctx.lineWidth = on ? 2.4 : 1.6; ctx.strokeStyle = col.accent; ctx.stroke(); ctx.setLineDash([]);
+        // label at the northernmost corner
+        let top = 0; for (let i = 2; i < c.a.length; i += 2) if (c.a[i + 1] > c.a[top + 1]) top = i;
+        const lx = sx(c.a[top]) + 6, ly = sy(c.a[top + 1]) - 4, tw = ctx.measureText("Seismic: " + c.name).width;
+        c.label = [lx - 4, ly - 15, lx + tw + 4, ly + 2];
+        ctx.fillStyle = col.panel; ctx.globalAlpha = 0.92; ctx.fillRect(c.label[0], c.label[1], tw + 8, 17); ctx.globalAlpha = 1;
+        ctx.fillStyle = col.accent; ctx.fillText("Seismic: " + c.name, lx, ly);
+      }
+    }
+
     // formation-level wells
-    if (show.l1) {
+    if (show.l1 && level === "gc") {
+      const s = clamp(view.k / 60, 2.2, 4.2);
+      for (let i = 0; i < l1.x.length; i++) {
+        const x = sx(l1.x[i]), y = sy(l1.y[i]), e = gcL1[i];
+        if (e < 0 || x < -9 || x > W + 9 || y < -9 || y > H + 9) continue;
+        if (gc.ex.kn[e] <= 10) { ctx.fillStyle = ramp(gc.ex.top[e]); ctx.fillRect(x - s, y - s, 2 * s, 2 * s); ctx.strokeStyle = col.panel; ctx.lineWidth = 1; ctx.strokeRect(x - s, y - s, 2 * s, 2 * s); }
+        else { ctx.strokeStyle = ramp(gc.ex.top[e]); ctx.lineWidth = 1.4; ctx.globalAlpha = 0.8; ctx.strokeRect(x - s * 0.8, y - s * 0.8, 1.6 * s, 1.6 * s); ctx.globalAlpha = 1; }
+      }
+    } else if (show.l1) {
       const s = clamp(view.k / 60, 2.2, 4.2);
       for (let pass = 0; pass < 2; pass++) {
         for (let i = 0; i < l1.x.length; i++) {
@@ -139,7 +174,24 @@ export function createMap(canvas, data, on) {
     }
 
     // wellbores left to plug: grey first, colours on top
-    const r = rWb(), order = level === "log" ? [0, 1, 2] : [0, 1, 2, 3];
+    const r = rWb(), order = level === "gc" ? [] : level === "log" ? [0, 1, 2] : [0, 1, 2, 3];
+    if (level === "gc" && gc) {
+      // Green Clay level: colour is the predicted depth to the top. Filled where a report names the unit within
+      // 10 km, a ring where the model is carried outside that area, grey where there is no prediction.
+      const T = gc.wb.top, K = gc.wb.kn;
+      for (let pass = 0; pass < 3; pass++) {
+        for (let i = 0; i < wb.x.length; i++) {
+          const kind = T[i] == null ? 0 : K[i] <= 10 ? 2 : 1;
+          if (kind !== pass) continue;
+          const x = sx(wb.x[i]), y = sy(wb.y[i]);
+          if (x < -6 || x > W + 6 || y < -6 || y > H + 6) continue;
+          ctx.beginPath(); ctx.arc(x, y, pass === 1 ? r * 0.8 : r, 0, 6.2832);
+          if (pass === 0) { ctx.fillStyle = col.none; ctx.globalAlpha = 0.45; ctx.fill(); ctx.globalAlpha = 1; }
+          else if (pass === 1) { ctx.lineWidth = 1.5; ctx.strokeStyle = ramp(T[i]); ctx.globalAlpha = 0.8; ctx.stroke(); ctx.globalAlpha = 1; }
+          else { ctx.fillStyle = ramp(T[i]); ctx.fill(); if (r >= 3) { ctx.strokeStyle = col.panel; ctx.lineWidth = 0.8; ctx.stroke(); } }
+        }
+      }
+    }
     for (const c of order) {
       ctx.beginPath();
       for (let i = 0; i < wb.x.length; i++) {
@@ -158,11 +210,22 @@ export function createMap(canvas, data, on) {
       if (data.controls[i].lat == null) continue;
       const x = sx(ctl.x[i]), y = sy(ctl.y[i]);
       if (x < -12 || x > W + 12 || y < -12 || y > H + 12) continue;
-      const cc = ctlColor(i), e = cc ? d : d * 0.72;
+      const cc = level === "gc" ? (gcCtl[i] >= 0 ? ramp(gc.ex.top[gcCtl[i]]) : null) : ctlColor(i), e = cc ? d : d * 0.72;
       ctx.beginPath(); ctx.moveTo(x, y - e); ctx.lineTo(x + e, y); ctx.lineTo(x, y + e); ctx.lineTo(x - e, y); ctx.closePath();
       if (cc) { ctx.lineWidth = 3.4; ctx.strokeStyle = col.panel; ctx.stroke(); }
       ctx.fillStyle = cc || col.panel; ctx.fill();
       ctx.lineWidth = cc ? 1.2 : 1; ctx.strokeStyle = cc ? col["ink-2"] : col.muted; ctx.stroke();
+    }
+
+    // report sites of the Green Clay: the answer key
+    if (level === "gc" && gc) {
+      const q = rCtl() * 0.9 + 2;
+      for (let i = 0; i < sites.x.length; i++) {
+        const x = sx(sites.x[i]), y = sy(sites.y[i]);
+        if (x < -12 || x > W + 12 || y < -12 || y > H + 12) continue;
+        ctx.beginPath(); ctx.moveTo(x, y - q); ctx.lineTo(x + q, y); ctx.lineTo(x, y + q); ctx.lineTo(x - q, y); ctx.closePath();
+        ctx.lineWidth = 3.6; ctx.strokeStyle = col.panel; ctx.stroke(); ctx.lineWidth = 1.8; ctx.strokeStyle = col.site; ctx.stroke();
+      }
     }
 
     // field names
@@ -181,7 +244,7 @@ export function createMap(canvas, data, on) {
 
     // hover and selection rings
     const mark = (o, w, colr) => {
-      if (!o || o.type === "field") return;
+      if (!o || (o.type !== "wb" && o.type !== "ctl" && o.type !== "l1")) return;
       const p = o.type === "wb" ? wb : o.type === "ctl" ? ctl : l1, rad = o.type === "ctl" ? d + 5 : o.type === "wb" ? r + 4.5 : 8;
       ctx.beginPath(); ctx.arc(sx(p.x[o.i]), sy(p.y[o.i]), rad, 0, 6.2832);
       ctx.lineWidth = w + 2.2; ctx.strokeStyle = col.panel; ctx.stroke();
@@ -210,11 +273,23 @@ export function createMap(canvas, data, on) {
       }
       return best;
     };
-    let i = near(ctl, rCtl() + 4, (k) => data.controls[k].lat == null);
+    let i = -1;
+    if (level === "gc" && gc) { i = near(sites, rCtl() + 5); if (i >= 0) return { type: "site", i }; }
+    i = near(ctl, rCtl() + 4, (k) => data.controls[k].lat == null);
     if (i >= 0) return { type: "ctl", i };
     i = near(wb, Math.max(6, rWb() + 3));
     if (i >= 0) return { type: "wb", i };
     if (show.l1) { i = near(l1, 7); if (i >= 0) return { type: "l1", i }; }
+    // a seismic cube: its label, or within a few pixels of its outline (the inside stays free for wells and fields)
+    if (show.cubes) for (let k = 0; k < cubes.length; k++) {
+      const c = cubes[k], L = c.label;
+      if (L && px >= L[0] && px <= L[2] && py >= L[1] && py <= L[3]) return { type: "cube", i: k, id: c.id };
+      for (let a = 0, n = c.a.length; a < n; a += 2) {
+        const x1 = sx(c.a[a]), y1 = sy(c.a[a + 1]), b = (a + 2) % n, x2 = sx(c.a[b]), y2 = sy(c.a[b + 1]);
+        const dx = x2 - x1, dy = y2 - y1, t = clamp(((px - x1) * dx + (py - y1) * dy) / (dx * dx + dy * dy || 1), 0, 1);
+        if (Math.hypot(px - (x1 + t * dx), py - (y1 + t * dy)) < 5) return { type: "cube", i: k, id: c.id };
+      }
+    }
     const x = wx(px), y = wy(py);
     for (let k = 0; k < fields.length; k++) {
       const f = fields[k];
@@ -320,5 +395,12 @@ export function createMap(canvas, data, on) {
     },
     theme, resize, render,
     fieldGeoIndexOf: (name) => data.fieldGeoByName.get(name) ?? -1,
+    /** Frame one seismic cube on the map. */
+    fitCube(id) {
+      const c = cubes.find((q) => q.id === id); if (!c) return;
+      const pad = Math.max(0.15, (c.x1 - c.x0) * 0.6);
+      fly({ cx: (c.x0 + c.x1) / 2, cy: (c.y0 + c.y1) / 2, k: clamp(Math.min(W / (c.x1 - c.x0 + 2 * pad), H / (c.y1 - c.y0 + 2 * pad)), 7, 2400) });
+    },
+    cubeName: (i) => (cubes[i] ? cubes[i].name : ""),
   };
 }
