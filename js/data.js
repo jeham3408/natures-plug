@@ -19,6 +19,8 @@ export async function loadAll(onProgress) {
   // Wells that lie inside an open seismic cube, and the outlines of the cubes (written by seismic/server/prep_wells.py).
   const seis = await get("data/seismic_wells.json").catch(() => null);
   data.seis = { wells: (seis && seis.wells) || {}, cubes: (seis && seis.cubes) || {} };
+  // Wells of an open cube that are not in the atlas (another country): where they are and what is open for them.
+  data.ext = Object.entries(data.seis.wells).filter(([, v]) => v.ext).map(([n, v]) => ({ n, ds: v.ds, cube: v.cube, td: v.td, ...v.ext }));
   // The Green Clay model: predicted top for every exploration well and every wellbore left to plug, and the report sites.
   data.gc = await get("data/greenclay.json").then(prepareGreenClay).catch(() => null);
   data.nb = prepareNeighbours(wb, controls, layer1);
@@ -26,6 +28,7 @@ export async function loadAll(onProgress) {
 
   data.ctlByName = new Map(controls.map((c, i) => [c.name, i]));
   data.l1ByName = new Map(layer1.map((w, i) => [w.n, i]));
+  data.extByName = new Map(data.ext.map((w, i) => [w.n, i]));
   data.wbByName = new Map(wb.name.map((n, i) => [n, i]));
   data.fieldGeoByName = new Map(fieldGeo.map((f, i) => [f.name, i]));
   data.fieldIdx = new Map(wb.fields.map((n, i) => [n, i]));

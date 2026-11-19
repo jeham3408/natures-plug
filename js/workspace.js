@@ -14,10 +14,10 @@ export function createWorkspace(app) {
   // ws: what the stage shows. insp: which facet of the selected well the right panel shows. server: null until asked.
   const st = { ws: "map", insp: "atlas", server: null, ids: [], hidLeft: false };
 
-  const selName = () => { const s = app.state.sel; return !s ? null : s.type === "ctl" ? data.controls[s.i].name : s.type === "l1" ? data.layer1[s.i].n : null; };
+  const selName = () => { const s = app.state.sel; return !s ? null : s.type === "ctl" ? data.controls[s.i].name : s.type === "l1" ? data.layer1[s.i].n : s.type === "ext" ? data.ext[s.i].n : null; };
   const selInfo = () => { const n = selName(); return n && wellsIn[n] ? { name: n, ...wellsIn[n] } : null; };
   const cubeName = (id) => (cubes[id] ? cubes[id].short || cubes[id].name : id);
-  const selectWell = (name, focus) => { if (data.ctlByName.has(name)) app.selectControl(name, focus); else app.selectLayer1(name, focus); };
+  const selectWell = (name, focus) => { if (data.extByName.has(name)) app.selectExternal(name, focus); else if (data.ctlByName.has(name)) app.selectControl(name, focus); else app.selectLayer1(name, focus); };
 
   // ------------------------------------------------------------------ the seismic server
   async function probe() {

@@ -358,6 +358,20 @@ export function createPanels(app) {
   }
 
   // ------------------------------------------------------------------ right: formation-level exploration well
+  /** A well of an open seismic cube that the atlas does not cover: what it is and what is open for it. */
+  function showExternal(i) {
+    const w = data.ext[i], c = data.seis.cubes[w.ds];
+    openToken++;
+    const td = { checkshot: "Measured in the well", calibrated: "Sonic tied to depth-time picks", sonic: "Sonic log, not calibrated", trend: "Regional trend" }[w.td] || "Not known";
+    let h = head(w.n, `Well outside the atlas · ${esc(w.country || "")}${w.field ? " · " + esc(w.field) : ""}`);
+    h += `<div class="verdict"><b>Not screened.</b> The atlas covers the Norwegian shelf and this well lies outside it, so it has no pressure window and no verdict. It is here for what can be seen in it on seismic.</div>`;
+    h += `<div class="facts">${fact("Seismic cube", esc(c ? c.short || c.name : w.ds))}${fact("Time-depth", td)}${fact("Position", `${w.la.toFixed(4)}° N, ${w.lo.toFixed(4)}° E`)}</div>`;
+    if (w.about) h += `<p class="small">${esc(w.about)}</p>`;
+    h += `<p class="small">Press <b>On seismic</b> above for the logs, the tops, the smectite samples and the well tie.</p>`;
+    h += `<p class="small muted">${[w.logs, c && c.attribution, c && c.licence].filter(Boolean).map(esc).join(" · ")}</p>`;
+    tracks?.destroy(); tracks = null;
+    right.hidden = false; right.innerHTML = `<div class="detail">${h}</div>`;
+  }
   async function showLayer1(i) {
     const w = data.layer1[i], a = app.state.result.l1[i], token = ++openToken;
     const sub = [w.f ? `near ${esc(title(w.f))}` : null, w.y ? `drilled ${w.y}` : null, w.c ? esc(w.c.toLowerCase()) : null].filter(Boolean).join(" · ");
@@ -386,7 +400,7 @@ export function createPanels(app) {
     showSelection() {
       const s = app.state.sel;
       if (!s) { openToken++; tracks?.destroy(); tracks = null; right.hidden = true; right.innerHTML = ""; return; }
-      if (s.type === "ctl") showControl(s.i); else if (s.type === "field") showField(s.name); else if (s.type === "wb") showWellbore(s.i); else if (s.type === "l1") showLayer1(s.i);
+      if (s.type === "ctl") showControl(s.i); else if (s.type === "field") showField(s.name); else if (s.type === "wb") showWellbore(s.i); else if (s.type === "l1") showLayer1(s.i); else if (s.type === "ext") showExternal(s.i);
     },
     /** After a recalculation: refresh numbers without reloading the logs. */
     refreshSelection() {
@@ -402,6 +416,7 @@ export function createPanels(app) {
     mapTip(h) {
       const r = app.state.result, G = app.state.level === "gc" ? data.gc : null;
       if (h.type === "site") return gcTips.site(data.gc, h.i);
+      if (h.type === "ext") return `<b>${esc(data.ext[h.i].n)}</b> <span class="sub">· ${esc(data.ext[h.i].country || "outside the atlas")}</span><br><span class="sub">Not in the atlas. Logs, tops and well tie on seismic: click to open.</span>`;
       if (h.type === "cube") return `<b>Seismic cube: ${esc(app.map.cubeName(h.i))}</b><br><span class="sub">Click to open it. The wells inside it can be seen on seismic.</span>`;
       if (G && h.type === "wb") return `<b>${esc(data.wb.name[h.i])}</b> <span class="sub">· wellbore left to plug</span><br>${gcTips.wb(G, data.wb, h.i)}`;
       if (G && h.type === "ctl") return `<b>${esc(data.controls[h.i].name)}</b> <span class="sub">· well with open logs</span><br>${gcTips.ex(G, data.controls[h.i].name)}`;

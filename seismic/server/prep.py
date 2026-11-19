@@ -419,6 +419,9 @@ def convert(a):
         "xl_axis_m": [round(float(xl_axis[0]), 6), round(float(xl_axis[1]), 6)],
         "origin_xy": [round(float(origin[0]), 3), round(float(origin[1]), 3)],
         "crs": a.crs,
+        # stated by the processing report or the textual header, never guessed: +1 = a positive number is an increase in
+        # acoustic impedance, -1 = a negative number is; None = not stated.  The well tie starts from it.
+        "polarity": a.polarity, "polarity_note": a.polarity_note,
         "amp": amp,
         "spectrum": spectrum,
         "textual_header": textual,
@@ -461,6 +464,10 @@ def main(argv=None):
     ap.add_argument("--licence", default="CC BY 4.0")
     ap.add_argument("--doi", default="10.5281/zenodo.4299758")
     ap.add_argument("--crs", default="GDA94 / MGA zone 51 (EPSG:28351)")
+    ap.add_argument("--polarity", type=int, choices=(1, -1), default=None,
+                    help="polarity as the survey documents state it: 1 = a positive number is an increase in acoustic "
+                         "impedance, -1 = a negative number is (default: not stated)")
+    ap.add_argument("--polarity-note", default=None, help="where the polarity statement comes from")
     return convert(ap.parse_args(argv))
 
 

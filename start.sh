@@ -24,7 +24,7 @@ HOST="${NP_HOST:-linux-pc}"
 PORT="${PORT:-8777}"
 APP="${NP_REMOTE_APP:-/mnt/ssd/Data/force-hackathon-2026/natures-plug}"
 # One or more prepared cubes as name=folder; the first is shown by default.
-CUBES="${NP_CUBES:-tne01=/mnt/ssd/Data/force-hackathon-2026/smeaheia/cubes/tne01 gn1101=/mnt/ssd/Data/force-hackathon-2026/smeaheia/cubes/gn1101 sleipner94=/mnt/ssd/Data/force-hackathon-2026/sleipner/cubes/sleipner94}"
+CUBES="${NP_CUBES:-tne01=/mnt/ssd/Data/force-hackathon-2026/smeaheia/cubes/tne01 gn1101=/mnt/ssd/Data/force-hackathon-2026/smeaheia/cubes/gn1101 sleipner94=/mnt/ssd/Data/force-hackathon-2026/sleipner/cubes/sleipner94 nini97=/mnt/ssd/Data/force-hackathon-2026/nini/cubes/nini97}"
 PY="${NP_PY:-/mnt/ssd/Arbeid/.system/envs/geoscience/bin/python}"
 
 echo "Nature's Plug with seismic: http://127.0.0.1:${PORT}/   Ctrl-C to stop"

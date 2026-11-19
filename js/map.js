@@ -45,6 +45,8 @@ export function createMap(canvas, data, on) {
   const gcL1 = gc ? data.layer1.map((w) => gc.exByName.get(w.n) ?? -1) : [];
   const gcCtl = gc ? data.controls.map((c) => gc.exByName.get(c.name) ?? -1) : [];
   const sites = gc ? P(gc.sites.map((s) => s.la), gc.sites.map((s) => s.lo)) : { x: [], y: [] };
+  // wells of an open cube that are not in the atlas (another country)
+  const ext = P(data.ext.map((w) => w.la), data.ext.map((w) => w.lo));
   // open seismic cubes: outline and a short name
   const cubes = Object.entries(data.seis.cubes).map(([id, c]) => ({ id, name: c.short || c.name || id, ...ring(c.outline) }));
 
@@ -217,6 +219,21 @@ export function createMap(canvas, data, on) {
       ctx.lineWidth = cc ? 1.2 : 1; ctx.strokeStyle = cc ? col["ink-2"] : col.muted; ctx.stroke();
     }
 
+    // wells outside the atlas that can be seen on an open cube: a ring in the colour of the cubes, with the name
+    if (show.cubes && ext.x.length) {
+      ctx.font = "600 10.5px system-ui, -apple-system, 'Segoe UI', sans-serif"; ctx.textAlign = "left"; ctx.textBaseline = "middle";
+      for (let i = 0; i < ext.x.length; i++) {
+        const x = sx(ext.x[i]), y = sy(ext.y[i]);
+        if (x < -12 || x > W + 12 || y < -12 || y > H + 12) continue;
+        ctx.beginPath(); ctx.arc(x, y, d * 0.85, 0, 6.2832);
+        ctx.lineWidth = 4.6; ctx.strokeStyle = col.panel; ctx.stroke(); ctx.fillStyle = col.panel; ctx.fill();
+        ctx.lineWidth = 2.2; ctx.strokeStyle = col.accent; ctx.stroke();
+        const t = data.ext[i].n, tw = ctx.measureText(t).width;
+        ctx.fillStyle = col.panel; ctx.globalAlpha = 0.92; ctx.fillRect(x + d + 3, y - 8, tw + 8, 16); ctx.globalAlpha = 1;
+        ctx.fillStyle = col.ink; ctx.fillText(t, x + d + 7, y + 0.5);
+      }
+    }
+
     // report sites of the Green Clay: the answer key
     if (level === "gc" && gc) {
       const q = rCtl() * 0.9 + 2;
@@ -244,8 +261,8 @@ export function createMap(canvas, data, on) {
 
     // hover and selection rings
     const mark = (o, w, colr) => {
-      if (!o || (o.type !== "wb" && o.type !== "ctl" && o.type !== "l1")) return;
-      const p = o.type === "wb" ? wb : o.type === "ctl" ? ctl : l1, rad = o.type === "ctl" ? d + 5 : o.type === "wb" ? r + 4.5 : 8;
+      if (!o || (o.type !== "wb" && o.type !== "ctl" && o.type !== "l1" && o.type !== "ext")) return;
+      const p = o.type === "wb" ? wb : o.type === "ctl" ? ctl : o.type === "ext" ? ext : l1, rad = o.type === "ctl" || o.type === "ext" ? d + 5 : o.type === "wb" ? r + 4.5 : 8;
       ctx.beginPath(); ctx.arc(sx(p.x[o.i]), sy(p.y[o.i]), rad, 0, 6.2832);
       ctx.lineWidth = w + 2.2; ctx.strokeStyle = col.panel; ctx.stroke();
       ctx.lineWidth = w; ctx.strokeStyle = colr; ctx.stroke();
@@ -275,6 +292,7 @@ export function createMap(canvas, data, on) {
     };
     let i = -1;
     if (level === "gc" && gc) { i = near(sites, rCtl() + 5); if (i >= 0) return { type: "site", i }; }
+    if (show.cubes) { i = near(ext, rCtl() + 5); if (i >= 0) return { type: "ext", i }; }
     i = near(ctl, rCtl() + 4, (k) => data.controls[k].lat == null);
     if (i >= 0) return { type: "ctl", i };
     i = near(wb, Math.max(6, rWb() + 3));

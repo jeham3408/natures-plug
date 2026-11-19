@@ -43,6 +43,7 @@ function select(sel, focus) {
     else if (sel.type === "ctl") app.map.focus(d.controls[sel.i].lon, d.controls[sel.i].lat, 170);
     else if (sel.type === "wb") app.map.focus(d.wb.lon[sel.i], d.wb.lat[sel.i], 320);
     else if (sel.type === "l1") app.map.focus(d.layer1[sel.i].lo, d.layer1[sel.i].la, 170);
+    else if (sel.type === "ext") app.map.focus(d.ext[sel.i].lo, d.ext[sel.i].la, 170);
   }));
 }
 Object.assign(app, {
@@ -50,6 +51,8 @@ Object.assign(app, {
   selectField(name, focus) { const i = app.data.fieldGeoByName.get(name); if (i != null) select({ type: "field", name, i }, focus); },
   selectControl(name, focus) { const i = app.data.ctlByName.get(name); if (i != null) select({ type: "ctl", i }, focus); },
   selectWellbore(name, focus) { const i = app.data.wbByName.get(name); if (i != null) select({ type: "wb", i }, focus); },
+  /** A well of an open seismic cube that is not in the atlas (another country). */
+  selectExternal(name, focus) { const i = app.data.extByName.get(name); if (i != null) select({ type: "ext", i }, focus); },
   selectLayer1(name, focus) { const i = app.data.l1ByName.get(name); if (i != null) { if (!app.map.isShown("l1")) { app.map.setShow("l1", true); panels.renderLegend(); } select({ type: "l1", i }, focus); } },
   setLevel(level) {
     if (app.state.level === level) return;
@@ -79,7 +82,7 @@ Object.assign(app, {
 // ------------------------------------------------------------------ deep links: #well=35/11-7, #wellbore=..., #field=...
 function writeHash() {
   const s = app.state.sel, d = app.data;
-  const h = !s ? "" : s.type === "ctl" ? "well=" + d.controls[s.i].name : s.type === "wb" ? "wellbore=" + d.wb.name[s.i] : s.type === "l1" ? "exploration=" + d.layer1[s.i].n : "field=" + s.name;
+  const h = !s ? "" : s.type === "ctl" ? "well=" + d.controls[s.i].name : s.type === "ext" ? "well=" + d.ext[s.i].n : s.type === "wb" ? "wellbore=" + d.wb.name[s.i] : s.type === "l1" ? "exploration=" + d.layer1[s.i].n : "field=" + s.name;
   try { history.replaceState(null, "", h ? "#" + encodeURIComponent(h).replace(/%3D/, "=").replace(/%2F/g, "/") : location.pathname + location.search); } catch (e) { /* file preview */ }
 }
 function readHash() {
@@ -89,7 +92,7 @@ function readHash() {
   if (h === "greenclay") { app.setLevel("gc"); ws?.openGreenClay(); return true; }   // old links to the Green Clay page
   const m = h.match(/^(well|wellbore|exploration|field)=(.+)$/);
   if (!m) return false;
-  if (m[1] === "well") app.selectControl(m[2], true); else if (m[1] === "wellbore") app.selectWellbore(m[2], true);
+  if (m[1] === "well") { if (app.data.extByName.has(m[2])) app.selectExternal(m[2], true); else app.selectControl(m[2], true); } else if (m[1] === "wellbore") app.selectWellbore(m[2], true);
   else if (m[1] === "exploration") app.selectLayer1(m[2], true); else app.selectField(m[2].toUpperCase(), true);
   return !!app.state.sel;
 }
@@ -102,6 +105,7 @@ function setupSearch() {
     ...d.controls.map((c) => ({ t: c.name, k: c.name.toLowerCase(), kind: "Well with logs", go: () => app.selectControl(c.name, true) })),
     ...d.wb.name.map((n) => ({ t: n, k: n.toLowerCase(), kind: "Left to plug", go: () => app.selectWellbore(n, true) })),
     ...d.layer1.filter((w) => !w.lg).map((w) => ({ t: w.n, k: w.n.toLowerCase(), kind: "Exploration well", go: () => app.selectLayer1(w.n, true) })),
+    ...d.ext.map((w) => ({ t: w.n, k: w.n.toLowerCase(), kind: "Well outside the atlas", go: () => app.selectExternal(w.n, true) })),
   ];
   let found = [], active = 0;
   const draw = () => {

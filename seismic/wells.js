@@ -12,7 +12,8 @@
 'use strict';
 (function () {
   const $ = (id) => document.getElementById(id);
-  const TOP_COL = { no: '#c9d4d0', ho: '#ff9de1', gc: '#5dff8f', ro: '#ffb000', sh: '#8fc7ff' };
+  const TOP_COL = { no: '#c9d4d0', ho: '#ff9de1', gc: '#5dff8f', hd: '#5dff8f', l1: '#9fb0aa', l2: '#9fb0aa', ro: '#ffb000', sh: '#8fc7ff' };
+  const GREEN = (k) => k === 'gc' || k === 'hd';              // the green clay: predicted top (gc) or the formation itself (hd)
   const HOR_COLS = ['#5dff8f', '#ffb000', '#ff9de1', '#8fc7ff', '#ffffff', '#ff6b6b'];
   const LOGS = { gr: ['Gamma ray', 'API'], vp: ['P velocity', 'm/s'], ai: ['Acoustic impedance', 'm/s·g/cm³'], rdep: ['Deep resistivity', 'Ω·m'],
     rho_used: ['Density', 'g/cm³'], vpvs: ['Vp/Vs', ''] };
@@ -37,6 +38,13 @@
     return w._rng[key];
   }
   function logVal(key, v) { return key === 'rdep' ? (fin(v) && v > 0 ? Math.log10(v) : NaN) : v; }
+  /** Two-way time at a depth below the kelly bushing, from the time-depth relation of the well (straight lines between its points). */
+  function twtOf(w, md) {
+    const a = w.td.md, b = w.td.twt;
+    if (!(md > a[0])) return b[0];
+    for (let k = 1; k < a.length; k++) if (md <= a[k]) return b[k - 1] + (b[k] - b[k - 1]) * (md - a[k - 1]) / ((a[k] - a[k - 1]) || 1);
+    return b[b.length - 1];
+  }
   function esc(s) { return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 
   /* ---------- synthetic seismogram ---------- */
@@ -237,8 +245,8 @@
         // tops
         if (W.showTops) for (const t of w.tops) {
           const y = Y(t.twt + sh), c = TOP_COL[t.key] || '#fff';
-          ctx.strokeStyle = c; ctx.lineWidth = t.key === 'gc' ? 2.4 : 1.6; ctx.beginPath(); ctx.moveTo(x - 16, y); ctx.lineTo(x + 16, y); ctx.stroke();
-          if (cur || t.key === 'gc') {
+          ctx.strokeStyle = c; ctx.lineWidth = GREEN(t.key) ? 2.4 : 1.6; ctx.beginPath(); ctx.moveTo(x - 16, y); ctx.lineTo(x + 16, y); ctx.stroke();
+          if (cur || GREEN(t.key)) {
             ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
             const tw2 = ctx.measureText(t.name).width; ctx.fillStyle = 'rgba(8,16,14,.82)'; ctx.fillRect(x - 22 - tw2 - 4, y - 8, tw2 + 8, 15);
             ctx.fillStyle = c; ctx.fillText(t.name, x - 20, y);
@@ -270,11 +278,16 @@
     if (!w || !w.logs || !w.logs.ai) { ctx.fillText(w ? 'This well has no sonic log, so no synthetic can be made. Tops are shown on the sections.' : 'Choose a well.', 10, 24); $('wl-corr').textContent = ''; return; }
     const L = w.logs, sh = shiftOf(w), syn = synthetic(w), [wa, wb] = tieTimes(w), ta = wa + sh - 60, tb = wb + sh + 60;
     const top = 34, bot = ch - 8, left = 44, Y = (t) => top + (t - ta) / (tb - ta) * (bot - top);
-    const tracks = [['gr', 'Gamma ray'], ['vp', 'Vp'], ['ai', 'Impedance'], ['syn', 'Synthetic'], ['seis', 'Seismic'], ['lc', 'Fit']];
+    const pts = (w.points || []).filter((p) => fin(p.smectite));
+    const tracks = [['gr', 'Gamma ray'], ['vp', 'Vp']];
+    if (L.vpvs) tracks.push(['vpvs', 'Vp/Vs']);                 // only where a shear sonic was logged
+    if (pts.length) tracks.push(['smec', 'Smectite']);         // only where samples were measured
+    tracks.push(['ai', 'Impedance'], ['syn', 'Synthetic'], ['seis', 'Seismic'], ['lc', 'Fit']);
     const pSec = W.pred && W.pred.sections && W.pred.sections.find((q) => q.well === w.name), pKey = W.predProp === 'none' ? 'vp' : W.predProp;
     const pCur = pSec && pSec.curves[pKey] && pSec.curves[pKey][W.predSet] ? pSec.curves[pKey] : null;
     if (pCur) tracks.push(['pred', 'Predicted ' + (pKey === 'gr' ? 'GR' : pKey === 'vp' ? 'Vp' : 'AI')]);
     const tw = (cw - left - 6) / tracks.length;
+    if (tw < 66) for (const tr of tracks) tr[1] = { 'Gamma ray': 'GR', Impedance: 'AI', Synthetic: 'Synth.' }[tr[1]] || tr[1].replace('Predicted ', 'Pred. ');
     ctx.textAlign = 'right'; ctx.textBaseline = 'middle'; ctx.strokeStyle = '#2b3a35';
     const stepT = (tb - ta) > 900 ? 200 : (tb - ta) > 400 ? 100 : 50;
     for (let t = Math.ceil(ta / stepT) * stepT; t <= tb; t += stepT) { const y = Y(t); ctx.fillStyle = '#93a19b'; ctx.fillText(String(t), left - 6, y); ctx.beginPath(); ctx.moveTo(left, y); ctx.lineTo(cw - 6, y); ctx.stroke(); }
@@ -316,6 +329,17 @@
           }
           ctx.strokeStyle = colr; ctx.lineWidth = 1.5; ctx.stroke();
         }
+      } else if (key === 'smec') {
+        // smectite measured on samples: a bar over the depth interval of a cuttings sample, a diamond at a core sample
+        const px = (v) => x0 + 3 + Math.min(1, Math.max(0, v / 60)) * (x1 - x0 - 6);
+        ctx.strokeStyle = '#2b3a35'; ctx.lineWidth = 1;
+        for (const g of [20, 40]) { ctx.beginPath(); ctx.moveTo(px(g), top); ctx.lineTo(px(g), bot); ctx.stroke(); }
+        ctx.strokeStyle = ctx.fillStyle = '#5dff8f';
+        for (const p of pts) {
+          const ya = Y(twtOf(w, p.md_top) + sh), yb = Y(twtOf(w, p.md_base) + sh), ym = (ya + yb) / 2, x = px(p.smectite);
+          if (p.material === 'core') { ctx.beginPath(); ctx.moveTo(x, ym - 4.5); ctx.lineTo(x + 4.5, ym); ctx.lineTo(x, ym + 4.5); ctx.lineTo(x - 4.5, ym); ctx.closePath(); ctx.fill(); }
+          else { ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x, Math.min(ya, ym - 2)); ctx.lineTo(x, Math.max(yb, ym + 2)); ctx.stroke(); ctx.beginPath(); ctx.arc(x, ym, 2.6, 0, 6.3); ctx.fill(); }
+        }
       } else if (key === 'lc') {
         // correlation in a sliding 200 ms window: where the tie holds and where it does not
         const mid = (x0 + x1) / 2, half = (x1 - x0) / 2 - 3;
@@ -344,14 +368,14 @@
       }
       ctx.restore();
       ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'; ctx.fillStyle = '#93a19b'; ctx.font = '10px system-ui, sans-serif';
-      if (L[key]) { const rg = logRange(w, key); ctx.fillText(Math.round(rg[0]) + ' – ' + Math.round(rg[1]) + ' ' + LOGS[key][1], (x0 + x1) / 2, 27); }
-      else ctx.fillText(key === 'syn' ? (W.wavelet === 'seis' && w.wavelet ? 'seismic wavelet, ' + w.wavelet.peak_hz + ' Hz' : 'Ricker ' + W.f + ' Hz') + (W.phase ? ', ' + W.phase + '°' : '')
+      if (L[key]) { const rg = logRange(w, key), nf = (v) => (key === 'vpvs' ? v.toFixed(1) : String(Math.round(v))); ctx.fillText(nf(rg[0]) + ' – ' + nf(rg[1]) + ' ' + LOGS[key][1], (x0 + x1) / 2, 27); }
+      else ctx.fillText(key === 'smec' ? '0 – 60 %, XRD' : key === 'syn' ? (W.wavelet === 'seis' && w.wavelet ? 'seismic wavelet, ' + w.wavelet.peak_hz + ' Hz' : 'Ricker ' + W.f + ' Hz') + (W.phase ? ', ' + W.phase + '°' : '')
         : key === 'seis' ? 'at the well' : key === 'pred' ? 'blind, cyan' : '−1 … +1', (x0 + x1) / 2, 27);
     });
     ctx.font = '600 10px system-ui, sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'bottom';
     for (const t of w.tops) {
       const y = Y(t.twt + sh); if (y < top || y > bot) continue;
-      ctx.strokeStyle = TOP_COL[t.key] || '#fff'; ctx.lineWidth = t.key === 'gc' ? 2 : 1.2; ctx.setLineDash(t.key === 'gc' ? [6, 3] : []);
+      ctx.strokeStyle = TOP_COL[t.key] || '#fff'; ctx.lineWidth = GREEN(t.key) ? 2 : 1.2; ctx.setLineDash(t.key === 'gc' ? [6, 3] : []);
       ctx.beginPath(); ctx.moveTo(left, y); ctx.lineTo(cw - 6, y); ctx.stroke(); ctx.setLineDash([]);
       ctx.fillStyle = TOP_COL[t.key] || '#fff'; ctx.fillText(t.name, left + 4, y - 2);
     }
@@ -468,20 +492,44 @@
   function renderWell() {
     const w = well(), box = $('wl-info');
     if (!w) { box.innerHTML = '<p class="muted">No well of the atlas is chosen in this cube.</p>'; drawTie(); return; }
-    const kind = { checkshot: 'Checkshot-corrected sonic log (measured)', calibrated: 'Sonic log tied to the dataset\'s depth–time picks', sonic: 'Sonic log, not calibrated', trend: 'Regional trend only' }[w.td_kind];
+    const kind = w.td_label || { checkshot: 'Checkshot-corrected sonic log (measured)', calibrated: 'Sonic log tied to the dataset\'s depth–time picks', sonic: 'Sonic log, not calibrated', trend: 'Regional trend only' }[w.td_kind];
 
     let h = '<p><b>' + esc(w.name) + '</b>' + (w.field ? ' · ' + esc(w.field) : '') + ' · inline ' + w.il.toFixed(0) + ', crossline ' + w.xl.toFixed(0) + '</p>' +
       '<p class="wl-td wl-' + w.td_kind + '"><b>Time–depth: ' + kind + '.</b> ' + esc(w.td_note) + '</p>' +
-      '<p class="muted">Logs: ' + esc(w.log_source || 'none open') + '</p><div class="wl-tops">';
+      polarityNote() + '<p class="muted">Logs: ' + esc(w.log_source || 'none open') + '</p><div class="wl-tops">';
     for (const t of w.tops) h += '<div class="wl-top"><span class="sw" style="background:' + (TOP_COL[t.key] || '#fff') + '"></span><span class="nm">' + esc(t.name) + '</span><span class="num">' + Math.round(t.md) + ' m · ' + Math.round(t.twt + shiftOf(w)) + ' ms</span>' +
       '<button type="button" data-follow="' + t.key + '">Follow</button></div>';
-    box.innerHTML = h + '</div>';
+    h += '</div>' + (w.tops_about ? '<p class="small muted">' + esc(w.tops_about) + '</p>' : '') + smectiteTable(w);
+    box.innerHTML = h;
     $('wl-shift').value = shiftOf(w); $('wl-shift-out').textContent = (shiftOf(w) > 0 ? '+' : '') + shiftOf(w) + ' ms';
     $('wl-shift').disabled = false;
     drawTie();
   }
+  /** What the documents of the survey say about polarity, what the sea bed shows, and what the synthetic uses. */
+  function polarityNote() {
+    const p = W.polInfo; if (!p) return '';
+    const clash = p.documented != null && p.documented !== p.used, sb = p.seabed;
+    let h = '<p class="wl-td' + (clash ? '' : ' wl-checkshot') + '"><b>Polarity' + (clash ? ': the data contradict the documents' : '') + '.</b> ';
+    if (p.documented != null) h += 'The survey is documented as: a ' + (p.documented === -1 ? 'negative' : 'positive') + ' number is an increase in acoustic impedance' + (p.documented_note ? ' (' + esc(p.documented_note) + ')' : '') + '. ';
+    if (sb) h += 'The sea bed, which is certain to be an increase, is a ' + (sb.positive_share >= 0.5 ? 'positive' : 'negative') + ' number in ' + Math.round(100 * Math.max(sb.positive_share, 1 - sb.positive_share)) + ' % of ' + sb.traces.toLocaleString('en') +
+      ' traces. It arrives at ' + Math.round(sb.median_time) + ' ms and the water depth puts it at ' + Math.round(sb.t_expected) + ' ms. ';
+    h += p.used === -1 ? 'The synthetic is therefore reversed.' : clash ? 'The synthetic is therefore not reversed. Tick Reverse polarity to see the documented convention.' : 'The synthetic is not reversed.';
+    return h + '</p>';
+  }
+  /** Smectite measured on samples of the well, summed up per formation. */
+  function smectiteTable(w) {
+    const pts = (w.points || []).filter((p) => fin(p.smectite)); if (!pts.length) return '';
+    const groups = [];
+    for (const p of pts) { let g = groups.find((q) => q.name === p.formation); if (!g) { g = { name: p.formation, v: [], a: Infinity, b: -Infinity, core: 0 }; groups.push(g); } g.v.push(p.smectite); g.a = Math.min(g.a, p.md_top); g.b = Math.max(g.b, p.md_base); if (p.material === 'core') g.core++; }
+    let h = '<h3>Smectite measured on samples</h3><table class="wl-t"><tr><th>Formation</th><th>Samples</th><th>Depth</th><th>Smectite</th></tr>';
+    for (const g of groups) {
+      const lo = Math.min.apply(null, g.v), hi = Math.max.apply(null, g.v);
+      h += '<tr><td>' + esc(g.name) + '</td><td>' + g.v.length + (g.core ? ' (' + g.core + ' core)' : '') + '</td><td>' + Math.round(g.a) + '–' + Math.round(g.b) + ' m</td><td>' + (Math.round(lo) !== Math.round(hi) ? Math.round(lo) + '–' + Math.round(hi) : Math.round(lo)) + ' %</td></tr>';
+    }
+    return h + '</table><p class="small muted">' + esc(w.points_about || '') + ' Green marks in the tie panel: a bar spans a cuttings interval, a diamond is a core sample.</p>';
+  }
   function setShift(v, auto) { const w = well(); if (!w) return; W.shift[w.name] = v; W.tied[w.name] = !!auto; renderWell(); renderHorizons(); SV.redraw(); }
-  function gotoWell() { const w = well(); if (!w) return; const g = w.tops.find((t) => t.key === 'gc') || w.tops.find((t) => t.key === 'ro') || w.tops[0]; SV.setPos({ il: w.il, xl: w.xl, t: g ? g.twt + shiftOf(w) : SV.S.t }, 0, false); }
+  function gotoWell() { const w = well(); if (!w) return; const g = w.tops.find((t) => t.key === 'gc') || w.tops.find((t) => t.key === 'hd') || w.tops.find((t) => t.key === 'ro') || w.tops[0]; SV.setPos({ il: w.il, xl: w.xl, t: g ? g.twt + shiftOf(w) : SV.S.t }, 0, false); }
 
   /** Zoom both sections to the overburden of the chosen well (sea bed to a little below the Shetland top). */
   function zoomOverburden() {
@@ -546,7 +594,7 @@
   async function loadCube() {
     API = window.SV_API || 'api/';
     const seq = ++loadSeq;
-    W.wells = []; W.sites = []; W.cur = -1; W.horizons = []; W.shift = {}; W.tied = {}; W.tieRange = null; W.mapTop = W.mapBase = -1; W.pred = null; W._wv = null;
+    W.wells = []; W.sites = []; W.cur = -1; W.horizons = []; W.shift = {}; W.tied = {}; W.tieRange = null; W.mapTop = W.mapBase = -1; W.pred = null; W._wv = null; W.polInfo = null;
     W.predProp = 'none'; $('wl-pred').value = 'none';
     renderWell(); renderHorizons(); drawClayMap(); renderPred();
     let j = null, pred = null;
@@ -554,6 +602,11 @@
     try { pred = await (await fetch(API + 'pred', { cache: 'no-store' })).json(); } catch (e) { pred = null; }
     if (seq !== loadSeq) return;                                // another cube was asked for meanwhile
     W.wells = (j && j.wells) || []; W.sites = (j && j.gc_sites) || []; W.sources = (j && j.sources) || [];
+    // polarity and wavelet start from what the cube itself shows: the sign of the sea bed where that was checked, and
+    // the wavelet from the seismic where its spectrum peaks far above the 25 Hz Ricker (whitened data)
+    W.polInfo = (j && j.polarity) || null;
+    W.pol = W.polInfo && W.polInfo.used === -1 ? -1 : 1; $('wl-pol').checked = W.pol < 0;
+    W.wavelet = W.wells.some((w) => w.wavelet && w.wavelet.peak_hz > 45) ? 'seis' : 'ricker'; $('wl-wav').value = W.wavelet; $('wl-f').disabled = W.wavelet !== 'ricker';
     W.pred = pred && pred.sections ? pred : null;
     W.predSet = W.pred && W.pred.sets && W.pred.sets.length ? (W.pred.sets.indexOf('ncs') >= 0 ? 'ncs' : W.pred.sets[0]) : null;
     const ps = $('wl-pred-set'), pp = $('wl-pred');

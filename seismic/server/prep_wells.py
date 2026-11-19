@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """prep_wells.py - put the wells of Nature's Plug on a prepared seismic cube.
 
-    python prep_wells.py --cube DIR --app DIR [--smeaheia-las DIR] [--ref-las FILE]
+    python prep_wells.py --cube DIR --app DIR [--smeaheia-las DIR] [--sleipner-las FILE] [--picks FILE] [--extra FILE ...]
 
 Writes DIR/wells.json for the seismic viewer: for every exploration well of the app (data/layer1.json) that
 falls inside the cube, its position in line numbers, a time-depth relation, group tops and the predicted top
@@ -25,6 +25,9 @@ sample the velocity of water (1470 m/s) and is about 50 ms late below them.
 
 Sonic samples that record the steel casing instead of the rock (about 57 us/ft) are removed together with
 everything above them: in 32/4-1 that is the log down to about 800 m.
+
+Wells that are not in the atlas (another country, for instance) come in with --extra: a file with position, logs, a
+time-depth relation and tops, as prep_nini.py writes it.  They are marked "external" and keep their own sources.
 
 Density that was not logged is estimated with Gardner's relation (0.31 * V^0.25, V in m/s) and flagged.
 Depths are metres below the kelly bushing; the wells used are near-vertical exploration wells, so measured
@@ -176,6 +179,23 @@ def bin_mean(tg, t, v, dt):
     return np.where(have, out, fill)
 
 
+def seabed_polarity(cube, t_axis, t_expected, half_ms=24.0, step=10):
+    """Is the sea bed a positive or a negative number in this cube?  The sea bed is the one reflector that is certain to
+    be an increase in acoustic impedance.  For every `step`-th trace the strongest sample within half_ms of the expected
+    time is taken; returned are the share of traces where it is positive and the median time of it."""
+    k = np.flatnonzero(np.abs(t_axis - t_expected) <= half_ms)
+    if k.size < 3:
+        return None
+    sub = np.asarray(cube[::step, ::step, k[0]:k[-1] + 1], dtype=np.float64).reshape(-1, k.size)
+    sub = sub[np.any(sub != 0, axis=1)]
+    if sub.shape[0] < 50:
+        return None
+    q = np.argmax(np.abs(sub), axis=1)
+    strongest = sub[np.arange(sub.shape[0]), q]
+    return dict(t_expected=round(float(t_expected), 1), window_ms=half_ms, traces=int(sub.shape[0]),
+                positive_share=round(float((strongest > 0).mean()), 3), median_time=float(np.median(t_axis[k][q])))
+
+
 def rnd(a, nd):
     return [None if not np.isfinite(v) else round(float(v), nd) for v in a]
 
@@ -187,10 +207,12 @@ def main(argv=None):
     ap.add_argument("--smeaheia-las", default=None, help="folder with the LAS files '32 2-1' and '32 4-1' of the Smeaheia dataset")
     ap.add_argument("--sleipner-las", default=None, help="'159-13 Logs.las' of the Sleipner 2019 reference dataset (well 15/9-13)")
     ap.add_argument("--picks", default=None, help="'Smeaheia well picks Feasibility phase.xlsx' of the Smeaheia dataset")
+    ap.add_argument("--extra", action="append", default=[], help="file with wells outside the atlas (see prep_nini.py); may be repeated")
     a = ap.parse_args(argv)
 
     import pyproj
     to_utm = pyproj.Transformer.from_crs(4230, 23031, always_xy=True)      # ED50 geographic -> ED50 / UTM 31N
+    to_geo = pyproj.Transformer.from_crs(23031, 4230, always_xy=True)
 
     meta = json.load(open(os.path.join(a.cube, "meta.json")))
     cube = np.load(os.path.join(a.cube, "cube_ixt.npy"), mmap_mode="r")
@@ -244,6 +266,66 @@ def main(argv=None):
         return t
 
     wells = []
+
+    def emit(name, field, x, y, fi, fj, i, j, trace, kb, seabed_md, t_sb, td_kind, note, td_md, td_twt, logs, src, top_list, atlas,
+             v_gap_used=None, casing_cut=None, more=None):
+        """One well of the output: tops in two-way time, the logs on the time grid, the wavelet around the well."""
+        def twt_of(md):
+            return float(np.interp(md, td_md, td_twt)) if td_md[0] <= md <= td_md[-1] else None
+
+        tops = []
+        for top in top_list:
+            t = twt_of(top["md"])
+            if t is not None:
+                tops.append(dict(top, twt=round(t, 1)))
+        tops.sort(key=lambda r: r["md"])
+
+        every = 20 if len(td_md) > 3000 else 10 if len(td_md) > 300 else 1      # measured levels are kept as they are
+        out = dict(name=name, field=field, il=round(meta["il0"] + fi * meta["il_step"], 2),
+                   xl=round(meta["xl0"] + fj * meta["xl_step"], 2), x=round(x, 1), y=round(y, 1), kb=kb,
+                   seabed_md=seabed_md, seabed_twt=round(t_sb, 1), td_kind=td_kind, td_note=note, tops=tops,
+                   td=dict(md=rnd(td_md[::every], 1), twt=rnd(td_twt[::every], 1)),
+                   v_gap=None if v_gap_used is None else round(v_gap_used), casing_cut=casing_cut,
+                   seis=dict(il=meta["il0"] + i * meta["il_step"], xl=meta["xl0"] + j * meta["xl_step"],
+                             trace=[round(float(v), 3) for v in trace]),
+                   log_source=src, logs=None, atlas=atlas)
+        if more:
+            out.update(more)
+        if logs is not None:
+            md = logs["md"]
+            ok = (md >= td_md[0]) & (md <= td_md[-1])
+            twt_md = np.interp(md, td_md, td_twt)
+            have = [k for k in ("gr", "dt", "rhob", "rdep", "dts") if logs.get(k) is not None and np.isfinite(logs[k][ok]).any()]
+            if have:
+                t_lo = min(np.nanmin(twt_md[ok & np.isfinite(logs[k])]) for k in have)
+                t_hi = max(np.nanmax(twt_md[ok & np.isfinite(logs[k])]) for k in have)
+                tg = np.arange(math.ceil(t_lo / DT_OUT) * DT_OUT, t_hi, DT_OUT)
+                L = dict(t0=float(tg[0]), dt=DT_OUT, n=len(tg), md=rnd(np.interp(tg, twt_md[ok], md[ok]), 1))
+                on_grid = {k: bin_mean(tg, twt_md[ok], logs[k][ok], DT_OUT) for k in have}
+                for k in have:                                  # "dt" is the time step above, so the sonic log is stored as "dtc"
+                    L["dtc" if k == "dt" else k] = rnd(on_grid[k], 3)
+                # velocity, density (measured or Gardner) and acoustic impedance for the synthetic
+                dt_t = on_grid["dt"] if "dt" in have else np.full(len(tg), np.nan)
+                vp = US_FT / dt_t
+                rho_m = on_grid["rhob"] if "rhob" in have else np.full(len(tg), np.nan)
+                gard = 0.31 * np.power(vp, 0.25)
+                rho = np.where(np.isfinite(rho_m), rho_m, gard)
+                L["vp"] = rnd(vp, 0)
+                L["rho_used"] = rnd(rho, 3)
+                L["rho_gardner"] = [bool(np.isfinite(v) and not np.isfinite(m)) for v, m in zip(vp, rho_m)]
+                L["ai"] = rnd(vp * rho, 0)
+                if "dts" in have:
+                    vs = US_FT / on_grid["dts"]
+                    L["vpvs"] = rnd(vp / vs, 3)
+                out["logs"] = L
+                # wavelet with the amplitude spectrum of the seismic around the well, over the logged interval
+                blk = np.asarray(cube[max(i - 3, 0):i + 4, max(j - 3, 0):j + 4, :], dtype=np.float32).reshape(-1, n_t)
+                blk = blk[np.any(blk != 0, axis=1)]
+                finite_ai = np.flatnonzero(np.isfinite(vp))
+                if blk.size and finite_ai.size:
+                    out["wavelet"] = stat_wavelet(blk, meta["dt_ms"], meta["t0_ms"], tg[finite_ai[0]], tg[finite_ai[-1]])
+        wells.append(out)
+
     for w in layer1:
         x, y = to_utm.transform(w["lo"], w["la"])
         fi, fj = to_grid(x, y)
@@ -341,64 +423,46 @@ def main(argv=None):
             note = ("No open checkshot or sonic. Sea bed picked on the seismic at %.0f ms, then the calibrated 32/2-1 "
                     "curve below the sea bed. Tops are approximate." % t_sb)
 
-        def twt_of(md):
-            return float(np.interp(md, td_md, td_twt)) if td_md[0] <= md <= td_md[-1] else None
-
-        tops = []
-        for key, label in (("no", "Nordland Gp"), ("ho", "Hordaland Gp"), ("ro", "Rogaland Gp"), ("sh", "Shetland Gp")):
-            if w.get(key):
-                t = twt_of(w[key][0])
-                if t is not None:
-                    tops.append(dict(name="Top " + label, key=key, md=w[key][0], twt=round(t, 1)))
+        top_list = [dict(name="Top " + label, key=key, md=w[key][0])
+                    for key, label in (("no", "Nordland Gp"), ("ho", "Hordaland Gp"), ("ro", "Rogaland Gp"), ("sh", "Shetland Gp")) if w.get(key)]
         g = gc_top.get(name)
         if g is not None and w.get("ho") and w.get("ro") and w["ho"][0] < g < w["ro"][0]:
-            t = twt_of(g)
-            if t is not None:
-                tops.append(dict(name="Green Clay top (predicted)", key="gc", md=float(g), twt=round(t, 1)))
-        tops.sort(key=lambda r: r["md"])
+            top_list.append(dict(name="Green Clay top (predicted)", key="gc", md=float(g)))
+        emit(name, w.get("f"), x, y, fi, fj, i, j, trace, kb, seabed_md, t_sb, td_kind, note, td_md, td_twt, logs, src, top_list,
+             ("well=" if w.get("lg") else "exploration=") + name, v_gap_used, casing_cut)
 
-        out = dict(name=name, field=w.get("f"), il=round(meta["il0"] + fi * meta["il_step"], 2),
-                   xl=round(meta["xl0"] + fj * meta["xl_step"], 2), x=round(x, 1), y=round(y, 1), kb=kb,
-                   seabed_md=seabed_md, seabed_twt=round(t_sb, 1), td_kind=td_kind, td_note=note, tops=tops,
-                   td=dict(md=rnd(td_md[::20 if len(td_md) > 3000 else 10], 1), twt=rnd(td_twt[::20 if len(td_md) > 3000 else 10], 1)),
-                   v_gap=None if v_gap_used is None else round(v_gap_used), casing_cut=casing_cut,
-                   seis=dict(il=meta["il0"] + i * meta["il_step"], xl=meta["xl0"] + j * meta["xl_step"],
-                             trace=[round(float(v), 3) for v in trace]),
-                   log_source=src, logs=None, atlas=("well=" if w.get("lg") else "exploration=") + name)
-        if logs is not None:
-            md = logs["md"]
-            ok = (md >= td_md[0]) & (md <= td_md[-1])
-            twt_md = np.interp(md, td_md, td_twt)
-            have = [k for k in ("gr", "dt", "rhob", "rdep", "dts") if logs.get(k) is not None and np.isfinite(logs[k][ok]).any()]
-            if have:
-                t_lo = min(np.nanmin(twt_md[ok & np.isfinite(logs[k])]) for k in have)
-                t_hi = max(np.nanmax(twt_md[ok & np.isfinite(logs[k])]) for k in have)
-                tg = np.arange(math.ceil(t_lo / DT_OUT) * DT_OUT, t_hi, DT_OUT)
-                L = dict(t0=float(tg[0]), dt=DT_OUT, n=len(tg), md=rnd(np.interp(tg, twt_md[ok], md[ok]), 1))
-                on_grid = {k: bin_mean(tg, twt_md[ok], logs[k][ok], DT_OUT) for k in have}
-                for k in have:                                  # "dt" is the time step above, so the sonic log is stored as "dtc"
-                    L["dtc" if k == "dt" else k] = rnd(on_grid[k], 3)
-                # velocity, density (measured or Gardner) and acoustic impedance for the synthetic
-                dt_t = on_grid["dt"] if "dt" in have else np.full(len(tg), np.nan)
-                vp = US_FT / dt_t
-                rho_m = on_grid["rhob"] if "rhob" in have else np.full(len(tg), np.nan)
-                gard = 0.31 * np.power(vp, 0.25)
-                rho = np.where(np.isfinite(rho_m), rho_m, gard)
-                L["vp"] = rnd(vp, 0)
-                L["rho_used"] = rnd(rho, 3)
-                L["rho_gardner"] = [bool(np.isfinite(v) and not np.isfinite(m)) for v, m in zip(vp, rho_m)]
-                L["ai"] = rnd(vp * rho, 0)
-                if "dts" in have:
-                    vs = US_FT / on_grid["dts"]
-                    L["vpvs"] = rnd(vp / vs, 3)
-                out["logs"] = L
-                # wavelet with the amplitude spectrum of the seismic around the well, over the logged interval
-                blk = np.asarray(cube[max(i - 3, 0):i + 4, max(j - 3, 0):j + 4, :], dtype=np.float32).reshape(-1, n_t)
-                blk = blk[np.any(blk != 0, axis=1)]
-                finite_ai = np.flatnonzero(np.isfinite(vp))
-                if blk.size and finite_ai.size:
-                    out["wavelet"] = stat_wavelet(blk, meta["dt_ms"], meta["t0_ms"], tg[finite_ai[0]], tg[finite_ai[-1]])
-        wells.append(out)
+    # ---- wells that are not in the atlas: position, logs, time-depth and tops come ready-made (prep_nini.py) ----
+    extra_sources, n_atlas, flat_seabed = [], len(wells), None
+    for path in a.extra:
+        ex = json.load(open(path))
+        used = False
+        for e in ex["wells"]:
+            if e.get("epsg", 23031) != 23031:
+                raise SystemExit("%s: well %s is not in ED50 / UTM zone 31N (EPSG:23031)" % (path, e["name"]))
+            fi, fj = to_grid(e["x"], e["y"])
+            if not (0 <= fi <= n_il - 1 and 0 <= fj <= n_xl - 1):
+                continue
+            i, j = int(round(fi)), int(round(fj))
+            trace = np.asarray(cube[i, j, :], dtype=np.float32)
+            if not np.any(trace):
+                continue
+            col = lambda v: None if v is None else np.array([np.nan if q is None else q for q in v], float)
+            c = e.get("curves") or {}
+            logs = dict(md=col(e["md"]), gr=col(c.get("gr")), dt=col(c.get("dt")), rhob=col(c.get("rhob")), rdep=col(c.get("rdep")),
+                        dts=col(c.get("dts"))) if e.get("md") else None
+            td_md, td_twt = col(e["td"]["md"]), col(e["td"]["twt"])
+            lon, lat = to_geo.transform(e["x"], e["y"])
+            if e.get("water_depth") is not None and flat_seabed is None:
+                flat_seabed = 2000.0 * float(e["water_depth"]) / V_WATER    # sea-bed time from a water depth, not from the seismic
+            more = dict(external=True, country=e.get("country"), lon=round(lon, 5), lat=round(lat, 5), about=e.get("about"),
+                        td_label=e["td"].get("label"),
+                        points=e.get("points") or [], points_about=e.get("points_about"), tops_about=e.get("tops_about"))
+            emit(e["name"], e.get("field"), e["x"], e["y"], fi, fj, i, j, trace, e["kb"], e["seabed_md"],
+                 float(np.interp(e["seabed_md"], td_md, td_twt)), e["td"]["kind"], e["td"]["note"], td_md, td_twt, logs,
+                 e.get("log_source"), e.get("tops") or [], None, more=more)
+            used = True
+        if used:
+            extra_sources += ex.get("sources", [])
 
     wells.sort(key=lambda r: (r["logs"] is None, r["name"]))
 
@@ -415,12 +479,24 @@ def main(argv=None):
                           tvd=s["tvd"], twt=round(float(np.interp(s["tvd"], md, tw)), 1), td_from=near["name"],
                           km_to_td_well=round(math.hypot(near["x"] - x, near["y"] - y) / 1000.0, 1),
                           wells=s.get("wells"), file=s.get("file"), page=s.get("page"), field=s.get("field")))
+    atlas_sources = ["Well positions, group tops: Norwegian Offshore Directorate FactPages (NLOD 2.0)",
+                     "Logs: FORCE 2020 well log dataset (CC BY 4.0); 32/2-1 and 32/4-1: Smeaheia dataset; 15/9-13: Sleipner 2019 reference dataset (the Sleipner Group)",
+                     "Depth-time picks of 32/2-1 and 32/4-1 and seismic: Smeaheia dataset, Gassnova SF and Equinor ASA (CO2 DataShare)",
+                     "Green Clay top: Nature's Plug predictor (from open well reports)"]
     res = dict(cube=meta.get("name"), dt_ms=meta["dt_ms"], t0_ms=meta["t0_ms"], n_t=n_t,
-               sources=["Well positions, group tops: Norwegian Offshore Directorate FactPages (NLOD 2.0)",
-                        "Logs: FORCE 2020 well log dataset (CC BY 4.0); 32/2-1 and 32/4-1: Smeaheia dataset; 15/9-13: Sleipner 2019 reference dataset (the Sleipner Group)",
-                        "Depth-time picks of 32/2-1 and 32/4-1 and seismic: Smeaheia dataset, Gassnova SF and Equinor ASA (CO2 DataShare)",
-                        "Green Clay top: Nature's Plug predictor (from open well reports)"],
+               sources=(atlas_sources if n_atlas or not extra_sources else []) + extra_sources,
                wells=wells, gc_sites=sites)
+    # ---- polarity: what the documents say (meta.json) and what the sea bed shows.  Only where a water depth is known
+    # independently of the seismic; the sea bed is taken as level over the cube, which holds for a box of a few km.
+    if flat_seabed is not None:
+        chk = seabed_polarity(cube, t_axis, flat_seabed)
+        documented = meta.get("polarity")
+        used = documented or 1
+        if chk and max(chk["positive_share"], 1.0 - chk["positive_share"]) >= 0.8:
+            used = 1 if chk["positive_share"] >= 0.5 else -1
+        res["polarity"] = dict(documented=documented, documented_note=meta.get("polarity_note"), seabed=chk, used=used)
+        print("polarity: documented %s, sea bed positive in %s of %s traces at %s ms (expected %s) -> used %+d" % (
+            documented, chk and chk["positive_share"], chk and chk["traces"], chk and chk["median_time"], chk and chk["t_expected"], used))
     p = os.path.join(a.cube, "wells.json")
     with open(p, "w") as fh:
         json.dump(res, fh, separators=(",", ":"))
@@ -436,8 +512,10 @@ def main(argv=None):
     for r in wells:
         if r["name"] not in idx["wells"] or r["logs"] is not None:
             idx["wells"][r["name"]] = dict(ds=ds_id, cube=meta.get("name"), td=r["td_kind"])
-    to_geo = pyproj.Transformer.from_crs(23031, 4230, always_xy=True)   # outline of the cube in ED50 longitude, latitude
-    corners = []
+            if r.get("external"):                               # not in the atlas: the app needs to know where and what it is
+                idx["wells"][r["name"]]["ext"] = dict(lo=r["lon"], la=r["lat"], country=r.get("country"), field=r.get("field"),
+                                                      about=r.get("about"), logs=r.get("log_source"))
+    corners = []                                                         # outline of the cube in ED50 longitude, latitude
     for ci, cj in ((0, 0), (n_il - 1, 0), (n_il - 1, n_xl - 1), (0, n_xl - 1)):
         cx, cy = np.array([ox, oy]) + A @ np.array([ci, cj])
         lon, lat = to_geo.transform(cx, cy)
