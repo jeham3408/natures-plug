@@ -325,6 +325,35 @@
         <canvas id="wl-tie" aria-label="Well tie: gamma ray, velocity, impedance, synthetic, seismic trace and local correlation against two-way time"></canvas>
         <p id="wl-corr" class="small"></p>
 
+        <h3>What if at this well</h3>
+        <p class="small muted">A calculation from this well's logs, not a detector of ductile clay. Change the rock in one interval and see whether the seismic trace at the well could tell the difference. It follows the tie above (shift, wavelet, phase, window) and never changes it.</p>
+        <div class="wl-grid" id="wi-ctl">
+          <label for="wi-top">Interval from</label>
+          <div class="wl-row"><select id="wi-top" aria-label="Top of the interval"></select><input type="number" id="wi-top-md" step="1" class="wl-num num" aria-label="Top of the interval, metres along the well" title="Depth along the well, metres"><span>m</span></div>
+          <label for="wi-base">down to</label>
+          <div class="wl-row"><select id="wi-base" aria-label="Base of the interval"></select><input type="number" id="wi-base-md" step="1" class="wl-num num" aria-label="Base of the interval, metres along the well"><span>m</span></div>
+          <span id="wi-mode-l" class="wi-lab">Change</span>
+          <div class="wl-row" role="radiogroup" aria-labelledby="wi-mode-l"><label class="chk"><input type="radio" name="wi-mode" id="wi-mode-scale" value="scale" checked> Scale velocity and density</label>
+            <label class="chk"><input type="radio" name="wi-mode" id="wi-mode-above" value="above"> Like the layer above</label></div>
+          <label for="wi-vp">P velocity</label>
+          <div class="wl-row"><input type="range" id="wi-vp" min="-20" max="20" step="1" value="0"><output id="wi-vp-out" class="num">0 %</output></div>
+          <label for="wi-rho">Density</label>
+          <div class="wl-row"><input type="range" id="wi-rho" min="-10" max="10" step="1" value="0"><output id="wi-rho-out" class="num">0 %</output></div>
+          <label for="wi-h" title="Change only the uppermost part of the interval">Thickness</label>
+          <div class="wl-row"><input type="range" id="wi-h" min="0" max="100" step="1" value="100"><output id="wi-h-out" class="num wi-wide"></output></div>
+          <label for="wi-ramp" title="Let the change come in gradually below the top instead of at once">Gradual top</label>
+          <div class="wl-row"><input type="range" id="wi-ramp" min="0" max="60" step="4" value="0"><output id="wi-ramp-out" class="num wi-wide">sharp</output></div>
+          <label for="wi-st" title="One thin hard layer, for example a limestone stringer: velocity and density up by the same factor">Hard streak</label>
+          <div class="wl-row"><label class="chk"><input type="checkbox" id="wi-st"> Add one,</label>
+            <span class="wi-nw"><input type="number" id="wi-st-th" min="2" max="10" step="1" value="5" class="wi-num num" aria-label="Thickness of the hard streak, metres"> m thick,</span>
+            <span class="wi-nw"><input type="number" id="wi-st-pct" min="5" max="100" step="5" value="30" class="wi-num num" aria-label="Rise in impedance in the hard streak, per cent"> % higher impedance,</span>
+            <span class="wi-nw"><input type="number" id="wi-st-z" min="0" step="1" class="wi-num num" aria-label="Depth of the hard streak below the top of the interval, metres"> m below the top</span></div>
+        </div>
+        <p id="wi-note" class="small muted"></p>
+        <div class="wl-row"><button type="button" class="btn" id="wi-reset">Reset the scenario</button></div>
+        <canvas id="wi-plot" aria-label="What if: impedance, synthetic as logged, synthetic of the scenario, and their difference with its typical size per window and the misfit band, against two-way time"></canvas>
+        <div id="wi-out" class="small wi-out"></div>
+
         <h3>Follow the clay away from the well</h3>
         <p class="small muted">Press <b>Follow</b> on a top above: the nearest peak or trough is followed from the well through the whole cube. Or put the cross-hair on any event and press the button below. The tracker is simple and can jump a cycle across faults, so check the line on the sections.</p>
         <div class="wl-row"><button type="button" class="btn" id="wl-follow-here">Follow the event at the cross-hair</button><span id="wl-track-msg" class="small muted"></span></div>
@@ -396,6 +425,7 @@
 
 <noscript><p style="padding:2rem">Nature's Plug needs JavaScript. Serve this folder over http, for example with <code>python3 -m http.server</code>, and open it in a browser.</p></noscript>
 <script src="seismic/wells.js"></script>
+<script src="seismic/whatif.js"></script>
 <script src="seismic/view3d.js"></script>
 <script src="seismic/app.js"></script>
 <script type="module" src="js/main.js"></script>

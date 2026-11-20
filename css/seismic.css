@@ -142,6 +142,28 @@ kbd { font-family: var(--mono); font-size: 11px; padding: 0 4px; border: 1px sol
 .chk { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--ink-2); cursor: pointer; }
 #wl-tie { flex: none; width: 100%; height: 440px; display: block; background: var(--view); border-radius: 10px; }
 #wl-map { flex: none; width: 100%; display: block; background: var(--view); border-radius: 10px; }
+
+/* "What if at this well": under the tie plot, same controls and the same dark viewport */
+#insp-tie input[type="radio"] { accent-color: var(--accent); width: 15px; height: 15px; margin: 0; flex: none; }
+#insp-tie input:disabled + span, #insp-tie label.chk:has(input:disabled) { color: var(--muted); cursor: default; }
+#wi-plot { flex: none; width: 100%; height: 320px; display: block; background: var(--view); border-radius: 10px; }
+#wi-plot[hidden], #wi-ctl[hidden] { display: none; }
+#insp-tie input.wi-num { width: 58px; }
+#wi-ctl input[type="number"]:disabled, #wi-ctl input[type="range"]:disabled { opacity: .5; }
+.wl-grid > .wi-lab { color: var(--ink-2); white-space: nowrap; }
+.wi-nw { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.wi-band { padding: 7px 10px; font-size: 12.5px; color: var(--ink-2); background: var(--panel-2); border-left: 3px solid var(--line); border-radius: 0 8px 8px 0; }
+#wi-ctl select { flex: 1 1 150px; }
+.wl-row output.wi-wide { min-width: 96px; }
+.wi-out { display: flex; flex-direction: column; gap: 8px; }
+.wi-out p { margin: 0; }
+.wi-t { margin: 0; }
+.wi-t td { vertical-align: middle; }
+.wi-t th.r { font-family: inherit; }
+.wi-tag { display: inline-block; min-width: 34px; padding: 1px 6px; border-radius: 5px; border: 1px solid var(--line); background: var(--panel-2); color: var(--ink-2); text-align: center; }
+.wi-tag.larger { background: var(--accent-soft); border-color: var(--accent); color: var(--ink); font-weight: 600; }
+.wi-tag.open { background: var(--warn-bg); border-color: var(--warm); color: var(--ink); }
+.wi-tag.na { color: var(--muted); }
 .wl-t { margin: 6px 0 10px; }
 .wl-t th, .wl-t td { padding: 4px 8px 4px 0; }
 

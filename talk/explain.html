@@ -1,0 +1,378 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nature's Plug – how it works</title>
+<style>
+  :root { --bg: #0a1412; --ink: #eaf2ee; --muted: #8ba097; }
+  html, body { margin: 0; height: 100%; background: var(--bg); overflow: hidden; }
+  canvas { display: block; width: 100vw; height: 100vh; }
+  #hud { position: fixed; left: 0; right: 0; bottom: 0; height: 4px; background: rgba(234,242,238,.08); }
+  #bar { height: 100%; width: 0; background: #2fcb93; }
+  #keys { position: fixed; right: 14px; top: 10px; font: 12px/1.4 ui-monospace, Menlo, monospace; color: #6f857c; }
+</style>
+</head>
+<body>
+<canvas id="c" aria-label="Animated explanation: a well, the open annulus, clay that creeps in, the two tests and the map"></canvas>
+<div id="hud"><div id="bar"></div></div>
+<div id="keys">→ next · ← back · space pause · R restart</div>
+<script src="explain-map.js"></script>
+<script>
+// Nature's Plug explained in five beats, drawn on a 1920x1080 canvas (scaled to the window).
+// Beat 1 the well · 2 the leak path · 3 the clay creeps · 4 the two tests · 5 from one well to the map.
+// The well is drawn not to scale (the annulus is a few centimetres). Numbers in beat 4 are the app's for
+// Fram 35/11-7 and Visund 34/8-1; the curves are schematic. Beat 5 plots the app's own result per wellbore.
+"use strict";
+const W = 1920, H = 1080;
+const C = { bg: "#0a1412", ink: "#eaf2ee", ink2: "#b9c8c1", muted: "#8ba097", line: "rgba(234,242,238,.16)",
+  pass: "#2fcb93", passInk: "#66e2b6", fail: "#f0703a", none: "#55645e", sand: "#e0b862", warn: "#f2c14e",
+  rock: "#1b2925", rock2: "#22332e", clay: "#2f8f6c", clayHi: "#46b98d", steel: "#cfd8d4", cement: "#7d8a85", gas: "#ffb27a", blue: "#6fb1ff" };
+const FH = '"Space Grotesk","Avenir Next","Helvetica Neue",Arial,sans-serif', FT = 'Inter,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif', FM = '"JetBrains Mono","SF Mono",Menlo,Consolas,monospace';
+
+const BEATS = [
+  { d: 9,  title: "A well that must be plugged", cap: "Cement inside the casing seals the hole. Behind the casing there is cement too, but only up to here." },
+  { d: 10, title: "The leak path", cap: "Gas that gets past the cement (a poor bond, a channel) meets an open gap above it and can rise along it. The usual fix: mill away the casing and cement it again." },
+  { d: 14, title: "Some clay can close it by itself", cap: "Soft, smectite-rich clay can creep in sideways, at its own depth, and close the gap. It does not flow down. Only a bond log and a pressure test can verify it." },
+  { d: 24, title: "Two tests on open data", cap: "Is it the right clay? (well logs)  Does the rock hold the reservoir pressure there? (leak-off tests)  At least 30 m of both, in one piece." },
+  { d: 20, title: "From one well to the map", cap: "Each wellbore left to plug takes the result of the nearest assessed well within 10 km. Its own cement and casing are not checked yet." },
+];
+const START = []; { let t = 0; for (const b of BEATS) { START.push(t); t += b.d; } }
+const TOTAL = START[START.length - 1] + BEATS[BEATS.length - 1].d;
+
+// ---------- helpers
+const cv = document.getElementById("c"), g = cv.getContext("2d");
+let S = 1, OX = 0, OY = 0;
+function resize() {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  cv.width = Math.round(innerWidth * dpr); cv.height = Math.round(innerHeight * dpr);
+  S = Math.min(innerWidth / W, innerHeight / H) * dpr; OX = (cv.width - W * S) / 2; OY = (cv.height - H * S) / 2;
+}
+addEventListener("resize", resize); resize();
+const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
+const ease = (x) => { x = clamp(x); return x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; };
+const seg = (t, a, b) => ease((t - a) / (b - a));           // eased 0..1 between a and b seconds
+const lerp = (a, b, k) => a + (b - a) * k;
+function text(s, x, y, o = {}) {
+  g.save(); g.globalAlpha *= o.a ?? 1; g.fillStyle = o.c || C.ink; g.font = `${o.w || 400} ${o.s || 26}px ${o.f || FT}`;
+  g.textAlign = o.al || "left"; g.textBaseline = o.bl || "alphabetic"; g.fillText(s, x, y); g.restore();
+}
+function wrap(s, x, y, maxW, o = {}) {
+  g.save(); g.font = `${o.w || 400} ${o.s || 28}px ${o.f || FT}`; const words = s.split(" "); let line = "", yy = y;
+  for (const w of words) { const t = line ? line + " " + w : w; if (g.measureText(t).width > maxW && line) { text(line, x, yy, o); line = w; yy += (o.lh || 40); } else line = t; }
+  if (line) text(line, x, yy, o); g.restore();
+}
+function arrow(x1, y1, x2, y2, col, wdt = 3, a = 1) {
+  g.save(); g.globalAlpha *= a; g.strokeStyle = col; g.fillStyle = col; g.lineWidth = wdt; g.lineCap = "round";
+  g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke();
+  const an = Math.atan2(y2 - y1, x2 - x1), h = 12 + wdt * 2;
+  g.beginPath(); g.moveTo(x2, y2); g.lineTo(x2 - h * Math.cos(an - .45), y2 - h * Math.sin(an - .45)); g.lineTo(x2 - h * Math.cos(an + .45), y2 - h * Math.sin(an + .45)); g.closePath(); g.fill(); g.restore();
+}
+function hatch(x, y, w, h, col, step = 12) {
+  g.save(); g.beginPath(); g.rect(x, y, w, h); g.clip(); g.strokeStyle = col; g.lineWidth = 1.5;
+  for (let i = -h; i < w + h; i += step) { g.beginPath(); g.moveTo(x + i, y + h); g.lineTo(x + i + h, y); g.stroke(); } g.restore();
+}
+
+// ---------- the well (beats 1-3, and small in beat 4)
+const WELL = { cx: 1260, top: 200, bot: 930, toc: 700, clayTop: 400, clayBot: 570, resTop: 820, plugTop: 745, plugBot: 795,
+  rCasIn: 34, rCasOut: 42, rHole: 74, x0: 820, x1: 1740 };
+const bubbles = Array.from({ length: 34 }, (_, i) => ({ side: i % 2 ? 1 : -1, ph: (i * 0.6180339) % 1, sp: .055 + ((i * 37) % 11) / 400, r: 4 + (i % 3) }));
+function closure(y, k) {              // how far the hole wall has moved in at depth y (0 = open, 1 = against the casing)
+  const { clayTop: a, clayBot: b } = WELL; if (y < a - 14 || y > b + 14) return 0;
+  const edge = Math.min(clamp((y - (a - 14)) / 40), clamp(((b + 14) - y) / 40));   // softer at the edges of the layer
+  return clamp(k * 1.35 * Math.pow(edge, .6)) * (y >= a && y <= b ? 1 : .55);
+}
+function drawWell(t3, opt) {
+  const { cx, top, bot, toc, clayTop, clayBot, resTop, plugTop, plugBot, rCasIn, rCasOut, rHole, x0, x1 } = WELL;
+  const a = opt.a ?? 1, build = opt.build ?? 1, leak = opt.leak ?? 0, creep = opt.creep ?? 0;
+  g.save(); g.globalAlpha = a;
+  // layers
+  const layers = [[top, clayTop, C.rock], [clayTop, clayBot, C.clay], [clayBot, resTop, C.rock2], [resTop, bot, C.sand]];
+  for (const [y0, y1, col] of layers) { g.fillStyle = col; g.globalAlpha = a * (col === C.sand ? .55 : col === C.clay ? .55 : 1); g.fillRect(x0, y0, x1 - x0, y1 - y0); }
+  g.globalAlpha = a;
+  hatch(x0, resTop, x1 - x0, bot - resTop, "rgba(10,20,18,.25)", 18);
+  text("sea bed", x1 - 12, top - 12, { c: C.muted, s: 20, al: "right" });
+  g.strokeStyle = C.line; g.lineWidth = 2; g.beginPath(); g.moveTo(x0, top); g.lineTo(x1, top); g.stroke();
+  text("soft clay", x1 - 14, clayTop + 34, { c: C.passInk, s: 24, w: 600, al: "right" });
+  text("reservoir (gas)", x1 - 14, resTop + 34, { c: C.sand, s: 24, w: 600, al: "right" });
+  // hole: the open annulus, wall moved in by the clay
+  const holeBot = lerp(top, bot, build);
+  g.fillStyle = "#0e2621";
+  g.beginPath(); g.moveTo(cx - rHole, top);
+  for (let y = top; y <= holeBot; y += 4) g.lineTo(cx - lerp(rHole, rCasOut, closure(y, creep)), y);
+  for (let y = holeBot; y >= top; y -= 4) g.lineTo(cx + lerp(rHole, rCasOut, closure(y, creep)), y);
+  g.closePath(); g.fill();
+  // clay that has moved in: draw it over the gap in the clay colour
+  if (creep > 0) {
+    g.fillStyle = C.clayHi; g.globalAlpha = a * .9;
+    for (const s of [-1, 1]) {
+      g.beginPath(); g.moveTo(cx + s * rHole, clayTop - 16);
+      for (let y = clayTop - 16; y <= clayBot + 16; y += 3) g.lineTo(cx + s * lerp(rHole, rCasOut, closure(y, creep)), y);
+      g.lineTo(cx + s * rHole, clayBot + 16); g.closePath(); g.fill();
+    }
+    g.globalAlpha = a;
+  }
+  // cement behind the casing, from the top of cement down
+  if (build > .55) {
+    const k = seg(build, .55, .9), yc = lerp(bot, toc, k);
+    for (const s of [-1, 1]) { g.fillStyle = C.cement; g.fillRect(s > 0 ? cx + rCasOut : cx - rHole, yc, rHole - rCasOut, bot - yc); hatch(s > 0 ? cx + rCasOut : cx - rHole, yc, rHole - rCasOut, bot - yc, "rgba(10,20,18,.35)", 9); }
+  }
+  // casing
+  g.fillStyle = C.steel;
+  g.fillRect(cx - rCasOut, top, rCasOut - rCasIn, holeBot - top); g.fillRect(cx + rCasIn, top, rCasOut - rCasIn, holeBot - top);
+  g.fillStyle = "#0b1b17"; g.fillRect(cx - rCasIn, top, 2 * rCasIn, holeBot - top);
+  // cement plug inside
+  if (build > .8) { const k = seg(build, .8, 1); g.globalAlpha = a * k; g.fillStyle = C.cement; g.fillRect(cx - rCasIn, plugTop, 2 * rCasIn, plugBot - plugTop); hatch(cx - rCasIn, plugTop, 2 * rCasIn, plugBot - plugTop, "rgba(10,20,18,.35)", 9); g.globalAlpha = a; }
+  // labels
+  if (build > .9 && opt.labels !== false) {
+    const k = seg(build, .9, 1);
+    g.save(); g.globalAlpha = a * k;
+    g.strokeStyle = C.ink2; g.setLineDash([6, 6]); g.lineWidth = 1.5; g.beginPath(); g.moveTo(cx - 260, toc); g.lineTo(cx - rHole - 6, toc); g.stroke(); g.setLineDash([]);
+    text("top of cement", cx - 268, toc + 8, { c: C.ink2, s: 22, al: "right" });
+    arrow(cx - 210, plugTop + 30, cx - rCasIn - 6, plugTop + 30, C.ink2, 2);
+    text("cement plug", cx - 218, plugTop + 38, { c: C.ink2, s: 22, al: "right" });
+    arrow(cx + 230, 250, cx + rCasOut + 4, 250, C.ink2, 2);
+    text("casing (steel)", cx + 238, 258, { c: C.ink2, s: 22 });
+    g.restore();
+  }
+  // annulus highlight and gas
+  if (leak > 0) {
+    g.save(); g.globalAlpha = a * leak * (.55 + .45 * Math.sin(t3 * 4) ** 2);
+    g.strokeStyle = C.gas; g.lineWidth = 3;
+    for (const s of [-1, 1]) { g.strokeRect(s > 0 ? cx + rCasOut + 2 : cx - rHole + 2, top + 4, rHole - rCasOut - 4, toc - top - 8); }
+    g.restore();
+    if (opt.leakLabel !== false) { arrow(cx + 300, 340, cx + rHole + 8, 340, C.gas, 3, leak); text("open annulus: a few cm", cx + 310, 348, { c: C.gas, s: 24, w: 600, a: leak }); }
+    // bubbles: from the reservoir up the open gap; stopped under the clay once it has closed
+    const stopY = creep > .62 ? clayBot + 18 : top;
+    for (const b of bubbles) {
+      const u = (b.ph + t3 * b.sp) % 1, x = cx + b.side * (rCasOut + (rHole - rCasOut) / 2) + Math.sin(u * 30 + b.ph * 9) * 4;
+      let y = lerp(resTop + 40, top, u);
+      if (y < toc - 4 || u < .02) {} else continue;           // only above the top of cement (they leak past the cement's top)
+      if (y < stopY) y = stopY + ((b.ph * 97) % 26);
+      g.globalAlpha = a * leak * clamp((toc - y) / 40); g.fillStyle = C.gas; g.beginPath(); g.arc(x, y, b.r, 0, 7); g.fill();
+    }
+    g.globalAlpha = a;
+  }
+  g.restore();
+}
+
+// ---------- beat 4: logs and pressure, schematic, with the app's numbers
+function drawTests(t) {
+  const k1 = seg(t, .3, 2.5), k2 = seg(t, 3, 6), k3 = seg(t, 7, 10), k4 = seg(t, 10.5, 13), k5 = seg(t, 14, 16.5);
+  // depth axis shared by both panels
+  const y0 = 230, y1 = 860, z0 = 700, z1 = 1900;                 // metres shown (schematic depth window)
+  const Y = (z) => lerp(y0, y1, (z - z0) / (z1 - z0));
+  // left: three logs
+  const L = { x: 170, w: 120, gap: 40 };
+  const tracks = [{ n: "Gamma ray", u: "API", thr: "> 40", col: "#9fd36b" }, { n: "Resistivity", u: "Ω·m", thr: "< 1.3", col: "#7fb7ff" }, { n: "Sonic", u: "µs/ft", thr: "> 135", col: "#d9a6ff" }];
+  // clay 1,000 to 1,270 m (schematic top); the rock holds from 1,120 m; the 1,120-1,270 m piece is the 150 m the app finds
+  const clayA = 1000, clayB = 1270, holds = 1120;
+  g.save(); g.globalAlpha = k1;
+  text("1 · The right clay?", L.x, 200, { s: 30, w: 700, f: FH });
+  tracks.forEach((tr, i) => {
+    const x = L.x + i * (L.w + L.gap);
+    g.strokeStyle = C.line; g.lineWidth = 1.5; g.strokeRect(x, y0, L.w, y1 - y0);
+    text(tr.n, x + L.w / 2, y1 + 30, { s: 20, c: C.ink2, al: "center" }); text(tr.thr + " " + tr.u, x + L.w / 2, y1 + 56, { s: 18, c: C.muted, al: "center", f: FM });
+    // threshold line
+    const tx = x + L.w * (i === 1 ? .35 : .55);
+    g.setLineDash([5, 5]); g.strokeStyle = "rgba(242,193,78,.7)"; g.beginPath(); g.moveTo(tx, y0); g.lineTo(tx, y1); g.stroke(); g.setLineDash([]);
+    // curve, drawn progressively
+    g.strokeStyle = tr.col; g.lineWidth = 2.2; g.beginPath();
+    const zEnd = lerp(z0, z1, k1);
+    for (let z = z0; z <= zEnd; z += 4) {
+      const inClay = z > clayA && z < clayB;
+      const n = Math.sin(z * .09 + i) * .07 + Math.sin(z * .023 + i * 2) * .05;
+      let v = inClay ? (i === 1 ? .18 : .74) : (i === 1 ? .62 : .36);
+      if (z > 1700) v = i === 1 ? .8 : .22;                       // reservoir below
+      const xx = x + L.w * clamp(v + n, .04, .96);
+      z === z0 ? g.moveTo(xx, Y(z)) : g.lineTo(xx, Y(z));
+    }
+    g.stroke();
+  });
+  // green band where all three agree
+  if (k2 > 0) {
+    g.globalAlpha = k2 * .35; g.fillStyle = C.pass; g.fillRect(L.x - 10, Y(clayA), 3 * L.w + 2 * L.gap + 20, Y(clayB) - Y(clayA));
+    g.globalAlpha = k2; tag("clay signature in all three", L.x + (3 * L.w + 2 * L.gap) / 2, Y(clayA) - 14, { s: 22, c: C.passInk, w: 600, al: "center" });
+  }
+  g.restore();
+
+  // right: pressure against depth
+  const P = { x: 880, w: 560 };
+  const X = (p) => P.x + P.w * (p - 1.0) / (1.0);                 // pressure as equivalent density 1.0 .. 2.0 g/cm³
+  g.save(); g.globalAlpha = k3;
+  text("2 · Strong enough?", P.x, 200, { s: 30, w: 700, f: FH });
+  g.strokeStyle = C.line; g.lineWidth = 1.5; g.strokeRect(P.x, y0, P.w, y1 - y0);
+  text("pressure ÷ depth, as density (g/cm³)", P.x + P.w / 2, y1 + 56, { s: 20, c: C.ink2, al: "center" });
+  for (const p of [1.2, 1.4, 1.6, 1.8]) text(p.toFixed(1), X(p), y1 + 28, { s: 18, c: C.muted, al: "center", f: FM });
+  for (const z of [800, 1000, 1200, 1400, 1600, 1800]) text(z + " m", P.x - 10, Y(z) + 6, { s: 18, c: C.muted, al: "right", f: FM });
+  // gas pressure from the reservoir (Fram: pore pressure 1.18 at 1,796 m, gas 0.2 g/cm³ above) as equivalent density
+  const zr = 1796, pr = 1.18, rg = .2;
+  const pg = (z) => (pr * zr - rg * (zr - z)) / z;
+  // rock strength from leak-off tests (schematic trend, crossing the gas line at 1,120 m as in the app)
+  const ps = (z) => pg(holds) + (z - holds) * .00022;
+  const draw = (f, col, kk, lab, ly) => {
+    g.save(); g.beginPath(); g.rect(P.x, y0, P.w, y1 - y0); g.clip();
+    g.strokeStyle = col; g.lineWidth = 3.2; g.beginPath(); const zEnd = lerp(zr, z0, kk);
+    for (let z = zr; z >= zEnd; z -= 5) { const xx = X(f(z)); z === zr ? g.moveTo(xx, Y(z)) : g.lineTo(xx, Y(z)); } g.stroke(); g.restore();
+    if (kk > .9) tag(lab, lab.startsWith("gas") ? P.x + 14 : X(f(ly)) - 14, Y(ly) - 10, { s: 22, c: col, w: 600, al: lab.startsWith("gas") ? "left" : "right" });
+  };
+  draw(pg, C.gas, k3, "gas pressure (rises upward: light gas)", 1600);
+  draw(ps, C.blue, seg(t, 8, 10.5), "fracture pressure (leak-off tests)", 1500);
+  if (k4 > 0) {
+    g.globalAlpha = k3 * k4;
+    g.fillStyle = "rgba(111,177,255,.10)"; g.fillRect(P.x, Y(holds), P.w, Y(zr) - Y(holds));
+    g.setLineDash([7, 6]); g.strokeStyle = C.ink2; g.lineWidth = 1.5; g.beginPath(); g.moveTo(L.x - 10, Y(holds)); g.lineTo(P.x + P.w, Y(holds)); g.stroke(); g.setLineDash([]);
+    text("the rock holds from 1,120 m down", P.x + 14, Y(holds) - 14, { s: 22, c: C.blue, w: 600 });
+    text("below: rock > gas", P.x + 14, Y(holds) + 34, { s: 20, c: C.muted, f: FM });
+  }
+  g.restore();
+
+  // the verdict: clay below the line, at least 30 m in one piece
+  if (k5 > 0) {
+    const bx = L.x + 3 * L.w + 2 * L.gap + 34, a = Y(holds), b = Y(holds + 150);
+    g.save(); g.globalAlpha = k5;
+    g.fillStyle = "rgba(47,203,147,.55)"; g.fillRect(L.x - 10, a, 3 * L.w + 2 * L.gap + 20, b - a);
+    g.strokeStyle = C.passInk; g.lineWidth = 3; g.beginPath(); g.moveTo(bx, a); g.lineTo(bx + 14, a); g.lineTo(bx + 14, b); g.lineTo(bx, b); g.stroke();
+    text("150 m", bx + 26, (a + b) / 2 + 2, { s: 26, w: 700, c: C.passInk });
+    text("≥ 30 m", bx + 26, (a + b) / 2 + 30, { s: 18, c: C.muted, f: FM });
+    g.restore();
+    g.save(); g.globalAlpha = k5;
+    g.fillStyle = "rgba(9,20,17,.92)"; g.strokeStyle = C.pass; g.lineWidth = 2;
+    roundRect(1490, 330, 390, 400, 16); g.fill(); g.stroke();
+    text("Fram 35/11-7", 1514, 380, { s: 26, w: 700, f: FH });
+    text("PASSES THE SCREEN", 1514, 430, { s: 32, w: 800, c: C.pass, f: FH });
+    wrap("150 m of clay lies below the depth where the rock holds.", 1514, 476, 340, { s: 24, c: C.ink2, lh: 32 });
+    text("Visund 34/8-1: fails", 1514, 600, { s: 26, w: 700, c: C.fail });
+    wrap("654 m of clay, all of it above 2,375 m, where the rock starts to hold.", 1514, 636, 340, { s: 22, c: C.ink2, lh: 30 });
+    g.restore();
+  }
+}
+function tag(s, x, y, o) {                     // text on a dark plate, so curves do not cross it
+  g.save(); g.font = `${o.w || 400} ${o.s || 26}px ${o.f || FT}`; const w = g.measureText(s).width, x0 = o.al === "center" ? x - w / 2 : o.al === "right" ? x - w : x;
+  g.fillStyle = "rgba(10,20,18,.88)"; g.fillRect(x0 - 8, y - (o.s || 26), w + 16, (o.s || 26) + 10); g.restore(); text(s, x, y, o);
+}
+function roundRect(x, y, w, h, r) { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
+
+// ---------- beat 5: the map, from the app's own result
+const M = window.EXPLAIN_MAP || { wb: [], ctl: [], cnt: [0, 0, 0] };
+const lat0 = 56, lat1 = 72.5, lon0 = 1, lon1 = 32;
+const SC = 62;                                 // pixels per degree of latitude at zoom 1
+function proj(la, lo) {                       // equirectangular, longitude squeezed by cos(61°), centred on 61.5 N 6 E
+  const cx = 1250, cy = 560, k = Math.cos(61 * Math.PI / 180);
+  return [cx + (lo - 6) * SC * k, cy - (la - 61.5) * SC];
+}
+function drawMap(t) {
+  const k1 = seg(t, .2, 2.5), k2 = seg(t, 3, 7), k3 = seg(t, 8, 11), k4 = seg(t, 11.5, 13.5);
+  const col = [C.none, C.fail, C.pass];
+  // zoom: start at the North Sea, then show the whole shelf
+  g.save(); g.beginPath(); g.rect(880, 190, 1000, 780); g.clip();
+  const zEnd = 1.3, [ex, ey] = proj(61.4, 6), z = lerp(6, zEnd, k3), [fx, fy] = proj(61.033, 3.591);
+  const px = lerp(fx, ex, k3), py = lerp(fy, ey, k3);
+  g.translate(1250, 560); g.scale(z, z); g.translate(-px, -py);
+  // assessed wells with logs: diamonds, with a 10 km circle for one of them
+  for (const [la, lo, c] of M.ctl) {
+    const [x, y] = proj(la, lo), s = 7 / Math.sqrt(z);
+    g.globalAlpha = k2 * .75; g.fillStyle = c === 2 ? C.pass : C.fail; g.strokeStyle = "#0a1412"; g.lineWidth = 1.5 / z;
+    g.beginPath(); g.moveTo(x, y - s); g.lineTo(x + s, y); g.lineTo(x, y + s); g.lineTo(x - s, y); g.closePath(); g.fill(); g.stroke();
+  }
+  // grey dots first
+  for (let i = 0; i < M.wb.length; i++) {
+    const [la, lo, c] = M.wb[i]; const [x, y] = proj(la, lo);
+    const reveal = clamp((k2 * 1.25 - (i % 97) / 97 * .25));   // colours arrive in a sweep
+    g.globalAlpha = k1 * .9; g.fillStyle = reveal > 0 ? mix(C.none, col[c], reveal) : C.none;
+    g.beginPath(); g.arc(x, y, 4.6 / Math.sqrt(z), 0, 7); g.fill();
+  }
+  if (k2 > 0 && k3 < 1) {                                        // 10 km around Fram 35/11-7 (61.03 N 3.59 E)
+    const [x, y] = proj(61.033, 3.591), r10 = 10 / 111 * SC;      // 10 km in degrees of latitude, times the scale
+    g.globalAlpha = k2 * (1 - k3); g.strokeStyle = C.passInk; g.lineWidth = 2 / z; g.setLineDash([6 / z, 5 / z]);
+    g.beginPath(); g.arc(x, y, r10, 0, 7); g.stroke(); g.setLineDash([]);
+    text("10 km", x + r10 + 4, y + 4, { s: 18 / z, c: C.passInk, a: k2 * (1 - k3) });
+  }
+  g.restore();
+  // counters
+  g.save(); g.globalAlpha = k2;
+  const n = (v) => Math.round(v * k4).toLocaleString("en-US");
+  const rows = [[M.cnt[2], "near a well that passes", C.pass], [M.cnt[1], "near a well that fails", C.fail], [M.cnt[0], "no assessed well within 10 km", C.none]];
+  rows.forEach(([v, lab, c], i) => { text(k4 > 0 ? n(v) : "", 170, 330 + i * 92, { s: 54, w: 700, c, f: FH }); text(lab, 170, 362 + i * 92, { s: 22, c: C.ink2 }); });
+  g.restore();
+  { g.save(); g.globalAlpha = k2; const lx = 170, ly = 880;
+    g.fillStyle = C.ink2; g.beginPath(); g.moveTo(lx + 8, ly - 16); g.lineTo(lx + 16, ly - 8); g.lineTo(lx + 8, ly); g.lineTo(lx, ly - 8); g.closePath(); g.fill(); text("assessed well with logs", lx + 26, ly - 1, { s: 20, c: C.ink2 });
+    g.beginPath(); g.arc(lx + 8 + 340, ly - 8, 6, 0, 7); g.fill(); text("wellbore left to plug", lx + 360, ly - 1, { s: 20, c: C.ink2 }); g.restore(); }
+  if (k4 > .5) { g.save(); g.globalAlpha = seg(t, 12.5, 14); wrap("It ranks where to look. It does not verify a barrier: that takes a bond log and a pressure test.", 170, 650, 560, { s: 26, w: 600, c: C.ink, lh: 38 }); g.restore(); }
+}
+function mix(a, b, k) {
+  const p = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)); const A = p(a), B = p(b);
+  return "rgb(" + A.map((v, i) => Math.round(lerp(v, B[i], clamp(k)))).join(",") + ")";
+}
+
+// ---------- the creep annotations (beat 3)
+function drawCreepNotes(t, k) {
+  const { cx, clayTop, clayBot, rHole } = WELL, mid = (clayTop + clayBot) / 2;
+  // horizontal stress arrows pushing in from the far field
+  for (const s of [-1, 1]) for (const dy of [-50, 0, 50]) {
+    const xo = cx + s * (rHole + 230), xi = cx + s * (rHole + 70 + 40 * (1 - k));
+    arrow(xo, mid + dy, xi, mid + dy, C.passInk, 3, seg(t, .5, 2));
+  }
+  text("σh", cx - rHole - 290, mid - 66, { s: 28, w: 700, c: C.passInk, f: FM, a: seg(t, .5, 2) });
+  // the condition, written out
+  g.save(); g.globalAlpha = seg(t, 2, 3.5);
+  text("horizontal stress in the clay  >  fluid pressure in the gap", 170, 300, { s: 24, f: FM, c: C.ink });
+  text("⇒  the clay creeps in, slowly", 170, 340, { s: 24, f: FM, c: C.passInk });
+  g.restore();
+  // a time-lapse clock
+  const yrs = lerp(0, 2, k);
+  g.save(); g.globalAlpha = seg(t, 1, 2);
+  text(yrs < 1 ? Math.round(yrs * 12) + " months" : yrs.toFixed(1) + " years", 170, 470, { s: 44, w: 700, f: FH, c: C.ink });
+  text("time-lapse: months to years or longer, it varies", 170, 502, { s: 20, c: C.muted });
+  g.restore();
+  if (k > .9) {
+    g.save(); g.globalAlpha = seg(t, 10, 12);
+    text("closed against the casing", cx + 190, clayBot + 70, { s: 24, w: 600, c: C.passInk });
+    text("to be verified with a bond log", cx + 190, clayBot + 100, { s: 20, c: C.ink2 });
+    arrow(cx + 180, clayBot + 62, cx + rHole + 4, clayBot - 6, C.passInk, 2.5);
+    g.restore();
+  }
+}
+
+// ---------- frame
+let T = 0, playing = true, last = performance.now();
+const qs = new URLSearchParams(location.search);
+if (qs.has("t")) { T = clamp(+qs.get("t") || 0, 0, TOTAL); playing = false; }
+if (qs.has("beat")) { const bn = clamp(Math.round(+qs.get("beat")) || 1, 1, BEATS.length); T = START[bn - 1] + clamp(+qs.get("at") || BEATS[bn - 1].d - .01, 0, BEATS[bn - 1].d - .01); playing = false; }
+function beatAt(t) { let i = 0; while (i + 1 < START.length && t >= START[i + 1]) i++; return i; }
+function frame(now) {
+  const dt = Math.min(.1, (now - last) / 1000); last = now; if (playing) T = Math.min(TOTAL, T + dt);
+  g.setTransform(1, 0, 0, 1, 0, 0); g.fillStyle = C.bg; g.fillRect(0, 0, cv.width, cv.height);
+  g.setTransform(S, 0, 0, S, OX, OY);
+  const bi = beatAt(T), lt = T - START[bi], B = BEATS[bi];
+  // title and caption (fade in at the start of each beat)
+  const fa = seg(lt, 0, .8);
+  text(String(bi + 1).padStart(2, "0") + " / 05", 170, 110, { s: 20, c: C.muted, f: FM, a: fa });
+  text(B.title, 170, 160, { s: 46, w: 700, f: FH, a: fa });
+  if (bi < 3) {
+    const build = bi === 0 ? seg(lt, .3, 6) : 1, leak = bi === 0 ? 0 : bi === 1 ? seg(lt, .5, 2.5) : 1, creep = bi === 2 ? seg(lt, 2, 10) : 0;
+    drawWell(T, { build, leak, creep, leakLabel: bi === 1, labels: bi < 2 });
+    if (bi === 2) drawCreepNotes(lt, creep);
+    if (bi === 1) { g.save(); g.globalAlpha = seg(lt, 3, 4.5); text("gas that passes the cement", 170, 320, { s: 26, f: FM, c: C.gas }); g.restore(); }
+    text("not to scale", WELL.x1, WELL.bot + 26, { s: 18, c: C.muted, al: "right" });
+  } else if (bi === 3) drawTests(lt);
+  else drawMap(lt);
+  // caption
+  g.save(); g.globalAlpha = seg(lt, .4, 1.4); wrap(B.cap, 170, 1002, 1580, { s: 25, c: C.ink2, lh: 34 }); g.restore();
+  document.getElementById("bar").style.width = (100 * T / TOTAL) + "%";
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+addEventListener("keydown", (e) => {
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  const bi = beatAt(T);
+  if (["ArrowRight", "PageDown"].includes(e.key)) { T = bi + 1 < BEATS.length ? START[bi + 1] : TOTAL; playing = true; }
+  else if (["ArrowLeft", "PageUp"].includes(e.key)) { T = T - START[bi] > 1 || bi === 0 ? START[bi] : START[bi - 1]; playing = true; }
+  else if (e.key === " ") { playing = !playing; e.preventDefault(); }
+  else if (e.key === "r" || e.key === "R") { T = 0; playing = true; }
+  else if (e.key === "f" || e.key === "F") { document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen?.(); }
+});
+cv.addEventListener("click", () => { playing = !playing; });
+</script>
+</body>
+</html>

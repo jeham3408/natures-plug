@@ -74,6 +74,12 @@
     W._wv = { key, w: wv };
     return wv;
   }
+  /** The wavelet in use, turned to another constant phase (degrees). Leaves the tie as it is: used by whatif.js. */
+  function waveletAt(w, phase) {
+    const keepPhase = W.phase, keepCache = W._wv;
+    try { W.phase = phase; W._wv = null; return Array.from(waveletFor(w)); }
+    finally { W.phase = keepPhase; W._wv = keepCache; }
+  }
   /** Reflection coefficients from acoustic impedance on the log time grid, convolved with the wavelet. */
   function synthetic(w) {
     const L = w.logs, ai = L.ai, n = L.n, rc = new Float64Array(n);
@@ -276,7 +282,12 @@
   }
 
   /* ---------- tie panel ---------- */
+  /** The tie plot, and after it the "what if" panel under it (whatif.js), which follows the same shift, wavelet and window. */
   function drawTie() {
+    drawTiePlot();
+    try { if (window.SVWhatIf) window.SVWhatIf.render(); } catch (e) { console.error('what-if panel:', e); }   // a fault there never stops the tie
+  }
+  function drawTiePlot() {
     const cv = $('wl-tie'), w = well(); if (!cv) return;
     const dpr = Math.min(window.devicePixelRatio || 1, 2), cw = cv.clientWidth, ch = cv.clientHeight;
     if (!cw || !ch) return;
@@ -658,7 +669,9 @@
     return true;
   }
 
-  window.SVWells = { draw, state: W, synthetic, correlation, bestShift, tieTimes, pick, current: () => well(),
+  window.SVWells = { draw, state: W, synthetic, correlation, bestShift, tieTimes, pick, current: () => well(), wavelet: waveletAt, seisAt, shiftOf,
+    /** First and last time (ms) of the seismic trace at a well: used by whatif.js. */
+    traceTimes: (w) => [SV.META.t0_ms, SV.META.t0_ms + (w.seis.trace.length - 1) * SV.META.dt_ms],
     /** Redraw the tie and the clay map, for instance after their pane became visible. */
     refresh() { drawTie(); drawClayMap(); } };
   if (window.SV) setup(); else window.addEventListener('sv-ready', setup, { once: true });

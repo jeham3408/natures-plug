@@ -1,6 +1,7 @@
 // Everything around the map: headline numbers, legend, the three left tabs and the detail panel on the right.
 import { DEFAULTS, LOG, FM, distKm } from "./engine.js";
-import { loadWell, loadDocs } from "./data.js";
+import { loadWell, loadDocs, loadBarrier } from "./data.js";
+import { characterise, fieldRows, FEATURES } from "./fieldchar.js";
 import { createTracks } from "./tracks.js";
 import { $, $$, esc, fmt, title, strat, docType, factUrl } from "./util.js";
 import { wbCard, exCard, tips as gcTips, rampCss, D0, D1 } from "./greenclay.js";
@@ -24,6 +25,14 @@ export function createPanels(app) {
   const kpis = $("#kpis"), legend = $("#legend"), right = $("#right"), tip = $("#tip");
   const pFields = $("#panel-fields"), pAssume = $("#panel-assume"), pValid = $("#panel-valid");
   let tracks = null, fieldFilter = "", openToken = 0;
+  // field characterisation (js/fieldchar.js): computed once per result, with the documented cases once they are loaded
+  let barrierData = null, fcCache = null, fcFor = null, fcHadBarrier = false;
+  loadBarrier().then((b) => { barrierData = b; fcFor = null; const s = app.state.sel; if (s && s.type === "field") showField(s.name); }).catch(() => {});
+  const fieldChar = () => {
+    const r = app.state.result;
+    if (fcFor !== r || fcHadBarrier !== !!barrierData) { fcCache = characterise(data, r, barrierData); fcFor = r; fcHadBarrier = !!barrierData; }
+    return fcCache;
+  };
 
   const bar = (counts, classes, total, max) =>
     `<span class="bar" style="width:${Math.max(3, (total / max) * 100).toFixed(1)}%">${counts.map((n, c) => (n ? `<i class="${classes[c]}" style="flex:${n} 1 0"></i>` : "")).reverse().join("")}</span>`;
@@ -171,9 +180,14 @@ export function createPanels(app) {
       <h3>What the well reports say</h3>
       <div>${rates.map((x) => `<div class="hbar${hi.includes(x.group) ? " hi" : ""}"><span>${esc(strat(x.group))}</span><i style="width:${((x.per_km / mx) * 100).toFixed(1)}%"></i><span>${x.per_km.toFixed(2)}</span></div>`).join("")}</div>
       <p class="small muted">Mentions of gumbo, swelling, plastic or mobile clay and creep per kilometre drilled, from ${fmt(V.doc_totals.pages)} report pages. Plain tight-hole and overpull mentions do not single out these groups.</p>
+      <h3>The same measures for every field</h3>
+      <p class="small">Havtil's 2025 knowledge report says there is most likely a need for a more systematic formation characterisation across fields. It calls work on geologically similar layers promising for transferring track records, but one that will require consistent geological and geomechanical criteria, and it calls for structured information sharing through common databases. Each field card offers a first, open attempt on one narrow set of measures: depth, thickness and pressure-window numbers for the clay groups, not creep properties.</p>
+      <p><button type="button" class="btn" id="dl-fields">Download the field table (CSV, current settings)</button></p>
+      <p class="small muted">One table from this tool, computed with the settings above. It is not a substitute for the common databases the report asks for.</p>
       <div class="box"><b>What this is not</b><span>Nothing here verifies a barrier. A wellbore inherits the result of a neighbouring exploration well within ${P.radiusKm} km. Use it to decide where a bond log is most likely to pay off.</span></div>`;
   }
   pValid.addEventListener("click", (e) => {
+    if (e.target.closest("#dl-fields")) { downloadFieldCsv(); return; }
     const t = e.target.closest("[data-field]");
     if (t) { app.setLevel("fm"); app.selectField(t.dataset.field, true); }
   });
@@ -303,6 +317,28 @@ export function createPanels(app) {
   }
 
   // ------------------------------------------------------------------ right: field
+  /** The clay groups of one field, measured the same way as every other field, its closest analogues and track record. */
+  function charBlock(C) {
+    const val = (f) => (C[f.key] == null ? "–" : `${fmt(C[f.key], f.d)} ${f.unit}`);
+    let h = `<h3>Clay groups in the nearest exploration wells</h3><div class="facts">${FEATURES.map((f) => fact(f.label, val(f))).join("")}</div>`;
+    h += `<p class="small muted">Medians over the ${fmt(C.wells)} exploration well${C.wells === 1 ? "" : "s"} nearest to this field's wellbores, from formation tops, leak-off tests and mud weight. Depths below the sea bed. Every field is treated the same way. These are depth, thickness and pressure-window numbers: they do not describe creep, swelling or other mechanical properties of the clay, and the pressure values are screening assumptions, not measurements.</p>`;
+    if (C.alike.length) {
+      const mark = (a) => [a.bad ? `<span class="pill"><i class="dot fail"></i>failure reported</span>` : "", a.ok ? `<span class="pill"><i class="dot pass"></i>used or logged</span>` : a.use ? `<span class="pill">documented use</span>` : ""].join("");
+      h += `<h3>Fields with the most similar numbers</h3><div class="neigh">${C.alike.map((a) => `<button type="button" data-go="field|${esc(a.name)}"><span>${esc(title(a.name))} <span class="muted">· ${fmt(a.wells)} well${a.wells === 1 ? "" : "s"}</span></span><span>${fmt(a.d, 2)}</span><span>${mark(a)}</span></button>`).join("")}</div>`;
+      h += `<p class="small muted">Closeness in Hordaland depth and thickness, Rogaland thickness and pore pressure only (robust standard units). It has not been shown to predict how the clay behaves, and no creep or geomechanical criteria are included. Check a similar field's track record against its own geology before relying on it.</p>`;
+    } else h += `<p class="small muted">Too few measures here to compare with other fields.</p>`;
+    h += `<h3>Track record</h3>` + (C.track.length ? `<ul class="small">${C.track.map((t) => `<li>${t.ok === false ? "✗ " : t.ok ? "✓ " : "· "}${esc(t.text)}</li>`).join("")}</ul>` : `<p class="small muted">No documented case found in the sources read here. This does not mean the clay has been tested.</p>`);
+    return h;
+  }
+  /** One row per field: the open, shared table the report asks for. */
+  function downloadFieldCsv() {
+    const q = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`, rows = fieldRows(fieldChar(), app.state.P);
+    const blob = new Blob([rows.map((x) => x.map(q).join(",")).join("\n")], { type: "text/csv" }), a = document.createElement("a");
+    a.href = URL.createObjectURL(blob); a.download = "natures-plug-fields.csv";
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  }
+
   function showField(name) {
     const r = app.state.result, gi = data.fieldGeoByName.get(name), g = data.fieldGeo[gi], wi = data.fieldIdx.get(name), F = wi != null ? r.fields[wi] : null, P = app.state.P;
     const sub = [g && g.operator ? esc(g.operator) : null, g && g.activity ? esc(g.activity) : null, g && g.hc ? esc(g.hc.toLowerCase()) : null].filter(Boolean).join(" · ");
@@ -313,6 +349,8 @@ export function createPanels(app) {
       h += `<div class="facts">${Object.entries(st).sort((a, b) => b[1] - a[1]).map(([s, n]) => fact(title(s.toLowerCase()), fmt(n))).join("")}</div>`;
       h += `<h3>Log level</h3><div class="rowline">${bar(F.log, LOG_CLS, F.left, F.left)}</div><p class="small">${fmt(F.log[2])} near a log well that passes, ${fmt(F.log[1])} near one that fails, ${fmt(F.log[0])} with no assessed log well within ${P.radiusKm} km.</p>`;
       h += `<h3>Formation level</h3><div class="rowline">${bar(F.fm, FM_CLS, F.left, F.left)}</div><p class="small">${fmt(F.fm[3])} with at least ${P.formationMin} m of Hordaland or Rogaland Group inside the pressure window, ${fmt(F.fm[2])} with less, ${fmt(F.fm[1])} with the clay group above the window, ${fmt(F.fm[0])} not covered.</p>`;
+      const C = fieldChar().byName.get(name);
+      if (C) h += charBlock(C);
     }
     if (g && g.use) h += `<div class="verdict"><b>Use is documented here.</b> ${esc(g.use[0])}: ${esc(g.use[1].charAt(0).toLowerCase() + g.use[1].slice(1))} (${esc(g.use[2])}).</div>`;
     if (g) {

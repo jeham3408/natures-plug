@@ -7,7 +7,7 @@
   "license": "MIT",
   "scripts": {
     "start": "python3 -m http.server 8000",
-    "test": "node --test tests/engine.test.mjs tests/greenclay.test.mjs",
+    "test": "node --test tests/engine.test.mjs tests/greenclay.test.mjs tests/whatif.test.mjs tests/fieldchar.test.mjs",
     "summary": "node tools/summary.mjs"
   }
 }

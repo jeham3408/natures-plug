@@ -104,6 +104,7 @@ Built during the hackathon, on 19 November 2026. It is the **Seismic and 3D** si
 - **3D view.** The three sections as planes in one scene, with the wells, their tops and the followed events as surfaces. Drag to turn, wheel to zoom, click a plane to move the cross-hair. Plain WebGL, no library.
 - **Logs and tops on the sections.** Gamma ray, sonic velocity, impedance, resistivity or density along the well, the group tops from FactPages and the top of the Green Clay from the predictor, all in two-way time.
 - **Well tie.** A synthetic seismogram from sonic and density beside the seismic trace at the well. Wavelet (Ricker, or one with the spectrum of the seismic), phase, polarity, bulk shift and the window the tie is judged in can all be changed, and a track shows the correlation in a sliding 200 ms window, so it is visible where the tie holds.
+- **What if at a well.** Under the tie: change the rock in one interval and see whether the trace could tell, against what the tie leaves unexplained (see below).
 - **Follow the clay away from the well.** One press follows the event at a top through the whole cube. Two followed events give a thickness map, and each followed event is compared with the same top in the other wells.
 - **Logs predicted from seismic.** P velocity, impedance and gamma ray as colour on the inline through a well, with a blind test at every well (see below for how well it works).
 
@@ -195,6 +196,33 @@ So the tool is there, and with the open data it does not yet predict logs better
 
 Rebuild: `seismic/server/prep.py` converts a SEG-Y cube, `seismic/server/prep_wells.py` places the wells and writes `wells.json` beside the cube and `data/seismic_wells.json` for the atlas. For a survey that is not a regular grid, `seismic/server/crop_segy.py` first cuts a regular box out of it. `seismic/server/prep_nini.py` reads Nini-4 and Nini-5 from the GEUS files into a well file that `prep_wells.py --extra` takes.
 
+### What if at a well
+
+Under the tie plot is a small scenario tool, added on 19 November 2026. An assessment of forward modelling for this project concluded that this is the one piece worth building. It answers one question: if the rock in one interval of this well were different, could the seismic trace at the well tell? It is a calculation from the logs of one well. It is not a detector of ductile clay, and it never changes the tie.
+
+- **The interval** runs from the predicted Green Clay top (or the Horda Formation) down to the Rogaland top. Both ends can be moved to another top or to a depth.
+- **The change.** Scale P velocity (−20 to +20 %) and density (−10 to +10 %), or choose **Like the layer above**. That choice mirrors the logged samples above the top into the interval, folded back and forth where the interval is thicker than the log above it. It does not multiply the interval by a number: that would keep the interval's own layering and can leave a false step at its top. Put the top on the step in the log itself, because a step just above the top is mirrored into the interval. With less than 20 m or 10 samples of unbroken log above the top the choice is switched off, and the panel says why.
+- **Scenario controls.** Change only the uppermost metres, let the change come in gradually over up to 60 m, or add one hard streak of 2 to 10 m (velocity and density up by the same factor).
+- **Time.** A change in velocity moves everything below it by 2 × thickness × (1/new velocity − 1/old velocity). The changed log is put back on the 2 ms grid, and the delay is shown with the velocity of the interval before and after, so the sign is explained: the rock above can be slower than the interval, and then everything below arrives later, not earlier.
+- **The misfit band.** The synthetic as logged is scaled to the seismic trace by least squares inside the tie window, at the current shift. The typical size (RMS) of what the seismic has left, divided by that scale, is the band: what the tie leaves unexplained, in the units of the synthetic. The band follows from the correlation alone (√(1 − r²)/r times the synthetic), so it is shown with a range: the same number with the correlation one standard error down and up. In a simulation with tie-length windows the true band lay inside that range about two times in three.
+- **The chance check.** A shift chosen as the best between −40 and +40 ms finds some correlation on any trace. So the synthetic is also laid on the same trace at wrong times (every 100 ms, 200 ms or more away) and searched the same way. If more than one wrong place in twenty scores as high as the tie, the panel says the tie is no better than chance. The band is then only a lower bound, and no change is read as larger.
+- **The reading.** For the top, the base, a hard streak and the 300 ms below the interval the panel gives the typical size of the change divided by the band. Larger than what the tie leaves unexplained only if the change beats the wide end of the band; smaller (this trace cannot tell the two apart) only if it stays under the narrow end; undecided in between. The same numbers are given with the wavelet phase turned 30° either way, and a reading that flips there is not a firm one. The plot shows the synthetic as logged, the scenario and their difference, with a box for the typical size in every window beside the amber band. Single peaks stand higher than the typical size, so a peak outside the band is not by itself a larger reading. The correlation of both synthetics with the seismic is shown as well, in grey and with a rough standard error from the window length and the bandwidth of the wavelet, because a small difference in correlation invites over-reading.
+
+Two examples with the ties the app starts with:
+
+- **Nini-4 (Nini 1997), a tie that holds.** Wavelet from the seismic, measured time–depth relation, no shift, correlation 0.52. None of 11 wrong places reaches that (0.08 in the middle). The band is 1.6 times the synthetic (1.3 to 2.1). Making the Horda Formation (1702 to 1785 m) like the layer above raises the velocity of the interval from 2288 to 2425 m/s, so everything below arrives 4.1 ms earlier. The top reads 0.9 of the band (0.7 to 1.2: undecided), the base 1.5 (1.2 to 1.9: larger). With the phase turned by +30° the base reads 0.7, so even this is not a firm reading. Below the interval nothing can be judged: only 46 ms of log is left.
+- **31/3-3 (TNE01), a tie no better than chance.** Ricker 25 Hz, shift +20 ms chosen by correlation, correlation 0.37 (−0.22 without the shift). At 4 of 28 wrong places the same search scores 0.37 or more (0.28 in the middle). The band is at least 2.5 times the synthetic. Making the predicted Green Clay interval (592 to 826 m) like the layer above lowers the velocity of the interval from 1941 to 1818 m/s, because the 104 m of log above it is slower, so everything below arrives 16.4 ms later. The trace changes by 0.1 of the band at the top, 0.8 at the base and 0.4 below: all smaller. With this tie, this trace cannot tell the logged clay from the rock above it. The correlation goes from 0.37 to 0.21, with a rough standard error of 0.18.
+
+What the panel cannot show:
+
+- Whether a clay is ductile or seals. A change in velocity and density is not creep.
+- Anything beyond one trace at normal incidence: no offsets, no shear waves, no anisotropy, no multiples, no change away from the well.
+- Which part of the band is noise. The band holds everything the tie does not explain: noise, a wrong wavelet, a wrong time–depth relation, logs that do not represent the rock the seismic sees. A better tie narrows it.
+- That a change is invisible on a section. "Smaller than the band" is about this trace with this tie; an event followed over many traces can stand out where one trace does not.
+- A delay on its own. A bulk shift of the tie absorbs it unless events above the interval hold the tie in place, and it needs events below the interval inside the log (at least 150 ms of log, or the panel gives no reading). The stretch below the interval often lies outside the tie window, and the panel says so when it does.
+- That a larger change always gives a larger number. A trace moved by a whole wavelet cycle looks much like itself, so the numbers for the base and below can drop when the delay comes close to a whole cycle. The panel says so when that happens.
+- A statistical test. The range of the band is one standard error either way, the chance check has only as many wrong places as the trace has room for (8 to about 30), and layers thinner than the 2 ms log grid (about 2 m) are averaged.
+
 ## What it does not do
 
 - It does not verify a barrier. That takes bond logs and a pressure test of the annulus.
@@ -230,7 +258,7 @@ js/workspace.js           map and seismic on one stage, one selected well, the t
 js/greenclay.js           the Green Clay level: map colours, well cards and the evidence sheet
 data/                     static JSON the app loads (53 MB, most of it loaded on demand)
 pipeline/                 scripts that build data/ from the raw downloads
-seismic/                  the seismic part of the page (app.js sections, wells.js wells and tie, view3d.js) and seismic/server/, its Python back end (built during the hackathon)
+seismic/                  the seismic part of the page (app.js sections, wells.js wells and tie, whatif.js the what-if panel, view3d.js) and seismic/server/, its Python back end (built during the hackathon)
 start.sh                  starts the whole app, including the seismic back end on the Linux machine
 tests/, tools/            engine and data tests and a command-line summary (Node 20 or newer)
 talk/                     the four-minute presentation: eleven slides over a 3D scene, see talk/README.md
@@ -246,11 +274,24 @@ See [`pipeline/README.md`](pipeline/README.md). In short: download about 6 GB of
 npm test
 ```
 
+This runs the engine and data tests and `tests/whatif.test.mjs`, the checks of the what-if calculation (zero change, the delay against the formula, no step and no leftover layering for "like the layer above", the gradual top, the hard streak, the misfit band against a known noise level and its range in a window as short as a tie window, the standard error of a correlation against a simulation, the chance check on unrelated and on real ties, the base reading when the change grows, missing log values).
+
 The seismic back end has its own tests (Python 3 with numpy, scipy, Pillow and pytest): `cd seismic/server && python -m pytest -q`.
+
+## Field characterisation
+
+Havtil's 2025 knowledge report on creeping shale (Reflekt AS, 22 November 2025, chapter 11) says there is "most likely a need for a more systematic formation characterization across fields", calls work on geologically similar layers promising for transferring track records (but one that will require consistent geological and geomechanical criteria), and calls for common databases. The app offers a first, open attempt on one narrow set of measures, from public data only (`js/fieldchar.js`, tests in `tests/fieldchar.test.mjs`):
+
+- **The same measures for every field.** Each field card gives six medians over the exploration wells nearest to its wellbores: top of the Hordaland Group below the sea bed, Hordaland and Rogaland thickness, the assumed reservoir pore pressure, the depth below the sea bed from which the leak-off estimate holds the gas, and the clay group inside that window. They are depth, thickness and pressure-window numbers, not creep or mechanical properties.
+- **The fields most alike.** The four nearest fields in Hordaland depth and thickness, Rogaland thickness and pore pressure (robust standard units, at least three shared measures), marked where a field has documented use or a reported case. Closeness in these numbers has not been shown to predict how the clay behaves. The southern chalk fields where Havtil documents use (Ekofisk, Valhall, Ula) come out as each other's nearest neighbours.
+- **The track record.** Havtil's documented use and the hand-read cases of the field itself; cases of other fields within 10 km are listed as context and never mark the field.
+- **An open table.** "Download the field table (CSV, current settings)" in the Validation tab gives one row per field. It is one table from this tool, not a substitute for the common databases the report asks for.
+
+Nothing here changes a headline number.
 
 ## What was prepared before the hackathon
 
-The data pipeline, this first version of the app and the slides in [`talk/`](talk/README.md) were prepared on 17 and 18 November 2026, before the FORCE VibeCode Hackathon in Stavanger began, with AI coding assistance (Claude Code). The Green Clay level, the seismic and 3D part and the single-page workspace that holds everything together were built during the hackathon, on 19 November, also with AI assistance. The organisers asked participants to bring data and ideas and to download large data sets in advance. Everything is built from open data only.
+The data pipeline, this first version of the app and the slides in [`talk/`](talk/README.md) were prepared on 17 and 18 November 2026, before the FORCE VibeCode Hackathon in Stavanger began, with AI coding assistance (Claude Code). The Green Clay level, the seismic and 3D part and the single-page workspace that holds everything together were built during the hackathon, on 19 November, and the field characterisation and the animated explainer (`talk/explain.html`) on 20 November, also with AI assistance. The organisers asked participants to bring data and ideas and to download large data sets in advance. Everything is built from open data only.
 
 ## Where it should go next
 
