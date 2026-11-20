@@ -353,3 +353,23 @@ tr.click:hover td { background: var(--panel-2); }
 @media (max-width: 980px) { .gc-grid { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 1320px) { .seg.ws button[data-ws="both"] { display: none; } }
 @media (max-width: 860px) { .stage { display: block; } }
+
+/* ---------- stage polish (20 Nov 2026): the verdict, the tour card and the headings read from the back of a room.
+   Styles only; no markup or logic depends on this block. ---------- */
+.d-head h2 { font-size: 23px; }
+.d-head p { font-size: 13px; }
+.pill.big { font-size: 14.5px; padding: 6px 14px; }
+.pill.big:has(.dot.pass) { background: color-mix(in srgb, var(--pass) 14%, var(--panel)); border-color: color-mix(in srgb, var(--pass) 55%, var(--line)); }
+.pill.big:has(.dot.fail) { background: color-mix(in srgb, var(--fail) 14%, var(--panel)); border-color: color-mix(in srgb, var(--fail) 55%, var(--line)); }
+.verdict { padding: 12px 14px; }
+.d-head + .verdict { font-size: 14.5px; line-height: 1.5; border-left-width: 4px; }
+.d-head + .verdict b:first-child { font-size: 16.5px; font-weight: 650; }
+.detail:has(.d-head .pill .dot.pass) .d-head + .verdict { background: color-mix(in srgb, var(--pass) 10%, var(--panel)); border-color: color-mix(in srgb, var(--pass) 40%, var(--line)); border-left-color: var(--pass); }
+.detail:has(.d-head .pill .dot.fail) .d-head + .verdict { background: color-mix(in srgb, var(--fail) 10%, var(--panel)); border-color: color-mix(in srgb, var(--fail) 40%, var(--line)); border-left-color: var(--fail); }
+.fact span { font-size: 11.5px; }
+.fact b { font-size: 14.5px; }
+.tourcard { width: min(620px, calc(100% - 28px)); padding: 18px 20px 16px; border-radius: 14px; border-top: 3px solid var(--accent); gap: 10px;
+  box-shadow: 0 2px 4px rgba(18, 32, 27, .08), 0 18px 44px rgba(18, 32, 27, .2); }
+.tourcard h3 { font-size: 20px; line-height: 1.2; }
+.tourcard p { font-size: 15.5px; line-height: 1.5; }
+@media (min-width: 1600px) { .kpi b { font-size: 19px; } .kpi span { font-size: 11.5px; } }   /* only where the top bar has room */
