@@ -12,7 +12,7 @@
 <main id="deck">
 <div id="stage">
 
-<section class="slide" id="cover" data-title="Nature’s Plug" data-time="0:00 to 0:12">
+<section class="slide" id="cover" data-title="Nature’s Plug" data-time="0:00 to 0:11">
   <div class="col">
     <p class="eyebrow">FORCE VibeCode Hackathon · Stavanger · November 2026</p>
     <h1>Nature’s<br>Plug</h1>
@@ -21,12 +21,12 @@
   </div>
   <p class="hint"><span class="for-stage">Drag the scene to look around · <kbd>→</kbd> next · <kbd>N</kbd> notes · <kbd>H</kbd> all keys</span><span class="for-scroll">Scroll down for the next slide</span></p>
   <aside class="notes">
-    <p class="do">Press T when you start talking: it starts the clock. Then → for every step.</p>
+    <p class="do">JESPER speaks on slides 1 to 4 (the geology). Fredric clicks. Press T when Jesper starts talking: it starts the clock. Then → for every step.</p>
     <p class="say">Hi, we’re Jesper and Fredric. Nature’s Plug is an open map of where the clay above a reservoir can seal an old well by itself.</p>
   </aside>
 </section>
 
-<section class="slide" id="problem" data-title="The problem" data-time="0:12 to 0:31">
+<section class="slide" id="problem" data-title="The problem" data-time="0:11 to 0:31">
   <div class="col">
     <h2>Plugging is over half the cost of shutdown</h2>
     <div class="herobox">
@@ -40,8 +40,8 @@
     <p class="source">Sources: Norwegian Offshore Directorate, 13 November 2025 · FactPages, 17 November 2026. One slab in a column is one wellbore.</p>
   </div>
   <aside class="notes">
-    <p class="do">The columns rise by themselves. Talk while the counter runs.</p>
-    <p class="say">Every slab in these columns is one wellbore. 2,893 wellbores on the Norwegian shelf are not yet permanently plugged, and every one of them will have to be.</p>
+    <p class="do">JESPER. The columns rise by themselves. Talk while the counter runs.</p>
+    <p class="say">Every slab in these columns is one wellbore: 2,893 on the Norwegian shelf are not yet permanently plugged, and every one will have to be.</p>
     <p class="say">Plugging is more than half the cost of shutting a field down, and the State pays 78 percent of it.</p>
   </aside>
 </section>
@@ -63,13 +63,14 @@
     <p class="source">Sources: Williams et al., SPE/IADC 119321 (2009) · Havtil / Reflekt AS, knowledge report on creeping shale, November 2025. The drawing is not to scale: the gap is a few centimetres wide.</p>
   </div>
   <aside class="notes">
+    <p class="do">JESPER.</p>
     <p class="say">Behind the steel pipe, above the cement, there is an open gap, and gas can rise through it. The usual fix is to cut out the pipe and cement it again.</p>
-    <p class="do">Press → once: the clay moves in from the sides and closes the gap.</p>
+    <p class="do">Fredric presses → once: the clay moves in from the sides and closes the gap.</p>
     <p class="say">But some clay creeps in from the sides and closes that gap by itself. Operators have used it since 2006, one well at a time. What’s missing is a map of where it works.</p>
   </aside>
 </section>
 
-<section class="slide" id="built" data-title="What we built, and the demo" data-time="1:00 to 2:24">
+<section class="slide" id="built" data-title="What we built, and the demo" data-time="1:00 to 2:04">
   <div class="col">
     <h2>Nature’s Plug maps where the clay can seal</h2>
     <p class="lead">Open data only. A web app with no build step; the seismic view has a small Python back end.</p>
@@ -80,24 +81,24 @@
     </div>
     <div class="ui row">
       <a class="btn" id="open-app" href="../" target="_blank" rel="noopener">Open the live app</a>
-      <span class="small">Live demo: the Tour in the app, then Nini-4 on seismic.</span>
+      <span class="small">Live demo: three steps of the Tour in the app, then Nini-4 on seismic.</span>
     </div>
   </div>
   <div class="shot3d ui" id="shot3d"><img src="img/app.jpg" width="1760" height="990" alt="The app: a map of the North Sea with every wellbore left to plug, and the log panel for well 35/11-7 at Fram, which passes with 150 m of clay"></div>
   <aside class="notes">
+    <p class="do">JESPER.</p>
     <p class="say">So we built that map, from open data only. Let us show you.</p>
-    <p class="do">Ctrl+Tab to the app and press Tour. → moves on, about 12 seconds a step. Show steps 1, 2, 3 and 5: after step 3, press → twice.</p>
+    <p class="do">Fredric: Ctrl+Tab to the app and press Tour. → moves on. Show steps 1, 2 and 3 only, about 12 seconds each.</p>
     <p class="say">Every dot is a wellbore left to plug. Green: the nearest well with logs passes our screen. Orange: it fails. Grey: too far to tell.</p>
     <p class="say">Fram. Green is the right kind of clay. The line is where the rock is strong enough to hold the reservoir pressure. Below it sit 150 metres of clay: it passes.</p>
     <p class="say">Visund has more clay, 654 metres. But the pressure is higher, so the rock only holds deeper than all of it. It fails. And on Visund, a well report shows the Green Clay had not closed behind the casing.</p>
-    <p class="say">The regulator, Havtil, names five fields that use this method. All five come out with the clay where the pressure holds, Valhall for most of its wells. We never told the screen which they were.</p>
-    <p class="do">Ctrl+Tab to the third tab: Nini-4, already open on seismic.</p>
-    <p class="say">And here is a similar clay on real 3D seismic, at Nini-4 in the Danish North Sea. Samples hold up to 54 percent smectite, the swelling clay mineral.</p>
-    <p class="do">Ctrl+Tab back to this tab and press →. If the app or the seismic fails: open presentasjon/reserve/index.html and talk over the screenshots, or press 9 for slides 9 to 11, then 5.</p>
+    <p class="do">Fredric: Ctrl+Tab to the third tab: Nini-4, already open on seismic.</p>
+    <p class="say">And here is a similar clay on real 3D seismic: Nini-4 in the Danish North Sea, with up to 54 percent smectite, the swelling clay mineral.</p>
+    <p class="do">HANDOVER. Fredric: Ctrl+Tab back to this tab (it wraps round to the first). Jesper takes the keyboard and presses →. FREDRIC speaks from here. If the app or the seismic fails: open presentasjon/reserve/index.html and talk over the screenshots, or press 9 for slides 9 to 11, then 5.</p>
   </aside>
 </section>
 
-<section class="slide" id="result" data-title="The result" data-time="2:24 to 2:45">
+<section class="slide" id="result" data-title="The result" data-time="2:04 to 2:39">
   <div class="col">
     <h2><span id="res-head">663</span> wellbores sit near a well that passes</h2>
     <p class="eyebrow" id="res-level">Log level · 117 wells with logs, 52 assessed</p>
@@ -113,30 +114,35 @@
     <p class="small" id="res-note">Sixteen fields have at least one such wellbore, among them Troll, Grane, Johan Sverdrup, Balder and Brage.</p>
   </div>
   <aside class="notes">
+    <p class="do">FREDRIC speaks on slides 5 to 8 (the informatics). Jesper clicks.</p>
     <p class="say">The result: 663 wellbores sit within ten kilometres of a well that passes every test, on sixteen fields, including Troll, Grane and Johan Sverdrup.</p>
-    <p class="do">Press → once: the length slider moves to 50 m and the map is recoloured.</p>
+    <p class="do">Jesper presses → once: the length slider moves to 50 m and the map is recoloured.</p>
     <p class="say">And it holds up. Ask for fifty metres of clay instead of thirty, and 663 becomes 605.</p>
+    <p class="say">Havtil, the regulator, names five fields that use this method. All five come out with the clay where the pressure holds, Valhall for most of its wells. The screen was never told.</p>
   </aside>
 </section>
 
-<section class="slide" id="greenclay" data-title="Built here: the Green Clay" data-time="2:45 to 3:13">
+<section class="slide" id="greenclay" data-title="Built here: the Green Clay" data-time="2:39 to 3:16">
   <div class="col mid">
     <h2>Built here: the Green Clay,<br>in the operators’ own words</h2>
     <div class="grid4">
       <div><h3>485 wellbores name it</h3><p>On Troll, Oseberg, Brage and Visund the drillers call a swelling clay in the Hordaland Group the Green Clay.</p></div>
-      <div><h3>29 sites give its depth</h3><p>One fitted line finds its top on a field it has not seen within 55 m on average. A plain guess misses by 123 m.</p></div>
+      <div><h3>29 sites give its depth</h3><p>One fitted line finds its top on a field it has not seen within 55 m on average. A plain guess misses by 123 m. On 39 new sites read with Fredric’s report reader: 52 m.</p></div>
       <div><h3>Where it sealed</h3><p>Veslefrikk: reported as a barrier element. Brage: confirmed on a log in 2009.</p></div>
       <div><h3 class="warn">Where it did not</h3><p>Visund: 792 m of it behind uncemented casing was assumed closed after two years. Total mud losses showed it was not.</p></div>
     </div>
-    <p class="small">From 2.75 million pages of public well reports. Fifteen documented cases in all: against them the atlas flags both failures and misses most of the successes. Every number links to a file and a page in the app.</p>
+    <p class="small">From 2.75 million pages of public well reports. Fifteen documented cases in all: against them the atlas flags both failures and misses most of the successes. Every number links to a file and a page in the app. The 39 new sites are nearly all on Troll, where a mid-Hordaland guess does as well as the line (52 m both; a fixed thickness misses by 80 m).</p>
   </div>
   <aside class="notes">
+    <p class="do">FREDRIC.</p>
     <p class="say">This we built here. Operators call this clay the Green Clay: 485 wellbores name it in public reports. From 29 quoted depths, one line finds its top on an unseen field within 55 metres on average.</p>
-    <p class="say">Havtil’s 2025 report says we most likely need a more systematic way to describe formations across fields. So every field now gets the same measures, and its most similar fields.</p>
+    <p class="say">Then my report reader gave us 39 new sites, nearly all on Troll. Untouched, the line misses those by 52 metres on average, the same as a simple mid-Hordaland guess there.</p>
+    <p class="say">Havtil’s 2025 report sees a likely need to describe formations more systematically across fields, so every field now gets the same measures.</p>
+    <p class="do">If asked: the 39 sites lie 2 to 10 km from the sites the line was fitted on, 38 of them on Troll. The line and the mid-Hordaland guess both miss by about 52 m; a fixed thickness misses by 80 m. Across fields, in the cross-validation, the line misses by 55 m and the plain guess by 123 m. The numbers are in the README.</p>
   </aside>
 </section>
 
-<section class="slide" id="limits" data-title="What it does not do" data-time="3:13 to 3:33">
+<section class="slide" id="limits" data-title="What it does not do" data-time="3:16 to 3:35">
   <div class="col mid">
     <h2>It ranks where to look.<br>It does not verify a barrier.</h2>
     <div class="grid4">
@@ -145,16 +151,17 @@
       <div><h3>Uncalibrated thresholds</h3><p>The clay signature is not yet checked against laboratory or field measurements.</p></div>
       <div><h3>Judged by a neighbour</h3><p>A wellbore takes its result from an exploration well up to 10 km away, not from its own logs.</p></div>
     </div>
-    <p class="small">Brought to the hackathon: the data pipeline and the first app (17–18 November). Built here: the Green Clay predictor, the documented cases and the seismic part (four open 3D surveys, the Nini-4 tie and the “what if” panel). All with AI coding assistance (Claude Code), from open data only.</p>
+    <p class="small">Brought to the hackathon: the data pipeline and the first app (17–18 November). Built here: the Green Clay predictor and its check against 4,462 completion reports, the documented cases, the field cards and the seismic part (four open 3D surveys, the Nini-4 tie and the “what if” panel). All with AI coding assistance (Claude Code and OpenAI Codex), from open data only.</p>
   </div>
   <aside class="notes">
+    <p class="do">FREDRIC.</p>
     <p class="say">To be clear: this ranks where to look. It does not verify a barrier. That takes a bond log and a pressure test, and open data has neither.</p>
     <p class="say">We use mud weight, not measured pressure, and the thresholds are not calibrated yet.</p>
     <p class="do">If someone asks what was built here: “We brought the screening pipeline; the Green Clay, the seismic and the field cards were built here, all with AI coding assistance.” The small text on the slide says the same.</p>
   </aside>
 </section>
 
-<section class="slide" id="next" data-title="Next step" data-time="3:33 to 3:55">
+<section class="slide" id="next" data-title="Next step" data-time="3:35 to 3:54">
   <div class="col mid">
     <h2>The well reports hold the next step</h2>
     <div class="grid4 ui" id="next-grid">
@@ -170,6 +177,7 @@
     </div>
   </div>
   <aside class="notes">
+    <p class="do">FREDRIC.</p>
     <p class="say">Next, we read measured pressures and cement tops from the reports. The same screen works for old wells in CO₂ storage licences.</p>
     <p class="say">It is all open data and open code, and we need one operator bond log to test it. Thank you.</p>
     <p class="do">The repository is public at github.com/jeham3408/natures-plug. Slides 9 to 11 are backup for questions.</p>
