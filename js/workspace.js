@@ -4,7 +4,7 @@
 // The seismic part (seismic/app.js, wells.js, view3d.js) needs its server for the cubes. Without the server the rest
 // of the app works as before and the seismic stage says what is missing.
 import { $, $$, esc } from "./util.js";
-import { loadBarrier } from "./data.js";
+import { loadBarrier, loadGreenClayCheck } from "./data.js";
 import { renderEvidence } from "./greenclay.js";
 
 export function createWorkspace(app) {
@@ -132,9 +132,11 @@ export function createWorkspace(app) {
     sheet.hidden = false;
     if (!gcDone && data.gc) {
       gcDone = true;
-      let B = null;
-      try { B = await loadBarrier(); } catch (e) { B = null; }
-      renderEvidence(sheet, data.gc, B);
+      const [barrier, check] = await Promise.all([
+        loadBarrier().catch(() => null),
+        loadGreenClayCheck().catch(() => null),
+      ]);
+      renderEvidence(sheet, data.gc, barrier, check);
     }
     const row = site != null ? $("#gc-site-" + site, sheet) : null;
     if (row) { row.scrollIntoView({ block: "center" }); row.classList.add("is-hit"); setTimeout(() => row.classList.remove("is-hit"), 3200); }

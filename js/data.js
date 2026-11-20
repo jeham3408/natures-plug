@@ -46,6 +46,7 @@ function cached(path) {
 
 /** Documented cases of clay used as a barrier (read by hand from the reports), for the Green Clay evidence sheet. */
 export const loadBarrier = () => cached("data/barrier.json");
+export const loadGreenClayCheck = () => cached("data/greenclay_check.json");
 
 /** Full curves, tops, casing and report quotes for one control well. */
 export const loadWell = (name) => cached(`data/wells/${safeId(name)}.json`);

@@ -1,0 +1,413 @@
+{
+  "date": "2026-11-20",
+  "unit": "metres TVD from rig floor",
+  "minimum_training_distance_km": 2,
+  "independent": {
+    "sites": 39,
+    "wells": 50,
+    "references": 13,
+    "troll_sites": 38,
+    "model": {
+      "mae": 51.5,
+      "median": 50.2,
+      "p90": 107.9,
+      "bias": -36.6,
+      "reference_balanced_mae": 55.0
+    },
+    "fixed": {
+      "mae": 79.5,
+      "median": 89.0,
+      "p90": 150.2,
+      "bias": -78.3,
+      "reference_balanced_mae": 84.9
+    },
+    "middle": {
+      "mae": 52.2,
+      "median": 46.0,
+      "p90": 103.5,
+      "bias": -33.1,
+      "reference_balanced_mae": 66.1
+    }
+  },
+  "all_new": {
+    "sites": 58,
+    "wells": 85,
+    "references": 21,
+    "troll_sites": 50,
+    "model": {
+      "mae": 50.6,
+      "median": 46.6,
+      "p90": 108.5,
+      "bias": -35.4,
+      "reference_balanced_mae": 55.9
+    },
+    "fixed": {
+      "mae": 76.0,
+      "median": 73.2,
+      "p90": 137.0,
+      "bias": -69.9,
+      "reference_balanced_mae": 81.2
+    },
+    "middle": {
+      "mae": 68.9,
+      "median": 46.2,
+      "p90": 172.9,
+      "bias": -50.6,
+      "reference_balanced_mae": 94.5
+    }
+  },
+  "bootstrap": {
+    "seed": 20261120,
+    "draws": 2000,
+    "confidence": 0.9,
+    "resampling_unit": "reference well",
+    "estimand": "site-weighted MAE",
+    "model": [
+      41.2,
+      65.2
+    ],
+    "model_minus_middle": [
+      -12.0,
+      7.0
+    ]
+  },
+  "calibration": {
+    "wells": 30,
+    "hits": 29,
+    "rows": 60,
+    "median_abs": 0.3,
+    "row_hits": 59
+  },
+  "manual_check": {
+    "seed": 20261120,
+    "drawn": 25,
+    "wrong": 0,
+    "correct": 25,
+    "population_rows": 132,
+    "maximum_absolute_model_error_m": 143.7,
+    "outliers_over_150_m": []
+  },
+  "training_field_cv": {
+    "n": 29,
+    "mae": 55.2,
+    "bias": 4.2,
+    "p90": 106.1
+  },
+  "credit": "Green Clay tops read with Fredric Hegland's report reader (frheg/hackathon-force)",
+  "reader_repository": "https://github.com/frheg/hackathon-force",
+  "reader_url": "https://github.com/frheg/hackathon-force/blob/e923fb230e824ca9ed63aa00d906fa2087c397e8/app/sketches/greenclay.py",
+  "sites": [
+    {
+      "well": "30/9-J-11 H",
+      "field": "OSEBERG S\u00d8R",
+      "observed": 1616.0,
+      "model": 1558.5282,
+      "middle": 1371.5,
+      "fixed": 1591.0
+    },
+    {
+      "well": "31/2-D-1 H",
+      "field": "TROLL",
+      "observed": 1126.5,
+      "model": 1058.1145999999999,
+      "middle": 1062.5,
+      "fixed": 1016.0
+    },
+    {
+      "well": "31/2-D-10 H",
+      "field": "TROLL",
+      "observed": 1055.0,
+      "model": 941.8442,
+      "middle": 963.5,
+      "fixed": 893.0
+    },
+    {
+      "well": "31/2-D-4 Y1H",
+      "field": "TROLL",
+      "observed": 1126.0,
+      "model": 1035.9744,
+      "middle": 1040.0,
+      "fixed": 994.0
+    },
+    {
+      "well": "31/2-D-5 H",
+      "field": "TROLL",
+      "observed": 1156.5,
+      "model": 1035.9744,
+      "middle": 1040.0,
+      "fixed": 994.0
+    },
+    {
+      "well": "31/2-D-7 H",
+      "field": "TROLL",
+      "observed": 1142.5,
+      "model": 1035.9744,
+      "middle": 1040.0,
+      "fixed": 994.0
+    },
+    {
+      "well": "31/2-F-4 H",
+      "field": "TROLL",
+      "observed": 1133.5,
+      "model": 1073.7684,
+      "middle": 1067.0,
+      "fixed": 1036.0
+    },
+    {
+      "well": "31/2-K-11 Y1H",
+      "field": "TROLL",
+      "observed": 915.0,
+      "model": 863.5452,
+      "middle": 887.0,
+      "fixed": 814.0
+    },
+    {
+      "well": "31/2-K-12 H",
+      "field": "TROLL",
+      "observed": 862.5,
+      "model": 863.5452,
+      "middle": 887.0,
+      "fixed": 814.0
+    },
+    {
+      "well": "31/2-K-13 H",
+      "field": "TROLL",
+      "observed": 873.5,
+      "model": 863.5452,
+      "middle": 887.0,
+      "fixed": 814.0
+    },
+    {
+      "well": "31/2-K-21 H",
+      "field": "TROLL",
+      "observed": 854.3,
+      "model": 863.5452,
+      "middle": 887.0,
+      "fixed": 814.0
+    },
+    {
+      "well": "31/2-K-22 H",
+      "field": "TROLL",
+      "observed": 835.3,
+      "model": 863.5452,
+      "middle": 887.0,
+      "fixed": 814.0
+    },
+    {
+      "well": "31/2-K-23 H",
+      "field": "TROLL",
+      "observed": 827.5,
+      "model": 863.5452,
+      "middle": 887.0,
+      "fixed": 814.0
+    },
+    {
+      "well": "31/2-M-11 H",
+      "field": "TROLL",
+      "observed": 913.0,
+      "model": 840.1990000000001,
+      "middle": 852.5,
+      "fixed": 795.0
+    },
+    {
+      "well": "31/2-M-12 H",
+      "field": "TROLL",
+      "observed": 867.0,
+      "model": 840.1990000000001,
+      "middle": 852.5,
+      "fixed": 795.0
+    },
+    {
+      "well": "31/2-M-14 H",
+      "field": "TROLL",
+      "observed": 884.0,
+      "model": 840.1990000000001,
+      "middle": 852.5,
+      "fixed": 795.0
+    },
+    {
+      "well": "31/2-M-23 H",
+      "field": "TROLL",
+      "observed": 923.0,
+      "model": 840.1990000000001,
+      "middle": 852.5,
+      "fixed": 795.0
+    },
+    {
+      "well": "31/2-M-42",
+      "field": "TROLL",
+      "observed": 949.0,
+      "model": 933.096,
+      "middle": 940.0,
+      "fixed": 890.0
+    },
+    {
+      "well": "31/2-N-14 H",
+      "field": "TROLL",
+      "observed": 959.0,
+      "model": 933.096,
+      "middle": 940.0,
+      "fixed": 890.0
+    },
+    {
+      "well": "31/2-N-23 H",
+      "field": "TROLL",
+      "observed": 1013.0,
+      "model": 933.096,
+      "middle": 940.0,
+      "fixed": 890.0
+    },
+    {
+      "well": "31/2-N-24 Y1H",
+      "field": "TROLL",
+      "observed": 1047.5,
+      "model": 933.096,
+      "middle": 940.0,
+      "fixed": 890.0
+    },
+    {
+      "well": "31/2-O-11 H",
+      "field": "TROLL",
+      "observed": 1011.0,
+      "model": 948.89,
+      "middle": 945.0,
+      "fixed": 910.0
+    },
+    {
+      "well": "31/2-O-13 BY1H",
+      "field": "TROLL",
+      "observed": 1003.5,
+      "model": 948.89,
+      "middle": 945.0,
+      "fixed": 910.0
+    },
+    {
+      "well": "31/2-O-41",
+      "field": "TROLL",
+      "observed": 1139.0,
+      "model": 1024.395,
+      "middle": 1029.5,
+      "fixed": 982.0
+    },
+    {
+      "well": "31/2-P-12 H",
+      "field": "TROLL",
+      "observed": 1012.5,
+      "model": 941.8442,
+      "middle": 963.5,
+      "fixed": 893.0
+    },
+    {
+      "well": "31/2-P-14 H",
+      "field": "TROLL",
+      "observed": 986.5,
+      "model": 941.8442,
+      "middle": 963.5,
+      "fixed": 893.0
+    },
+    {
+      "well": "31/2-P-21 H",
+      "field": "TROLL",
+      "observed": 1075.1,
+      "model": 1024.395,
+      "middle": 1029.5,
+      "fixed": 982.0
+    },
+    {
+      "well": "31/2-P-23 Y1H",
+      "field": "TROLL",
+      "observed": 1041.0,
+      "model": 1024.395,
+      "middle": 1029.5,
+      "fixed": 982.0
+    },
+    {
+      "well": "31/2-P-41",
+      "field": "TROLL",
+      "observed": 1050.0,
+      "model": 1024.395,
+      "middle": 1029.5,
+      "fixed": 982.0
+    },
+    {
+      "well": "31/2-X-22 H",
+      "field": "TROLL",
+      "observed": 911.5,
+      "model": 863.5452,
+      "middle": 887.0,
+      "fixed": 814.0
+    },
+    {
+      "well": "31/2-X-23 Y1HT4",
+      "field": "TROLL",
+      "observed": 897.7,
+      "model": 863.5452,
+      "middle": 887.0,
+      "fixed": 814.0
+    },
+    {
+      "well": "31/5-H-3 H",
+      "field": "TROLL",
+      "observed": 997.0,
+      "model": 940.292,
+      "middle": 940.0,
+      "fixed": 900.0
+    },
+    {
+      "well": "31/5-H-4 H",
+      "field": "TROLL",
+      "observed": 1021.2,
+      "model": 1023.3292,
+      "middle": 1018.0,
+      "fixed": 985.0
+    },
+    {
+      "well": "31/5-I-11 H",
+      "field": "TROLL",
+      "observed": 908.0,
+      "model": 940.7498,
+      "middle": 936.5,
+      "fixed": 902.0
+    },
+    {
+      "well": "31/5-I-12 Y1H",
+      "field": "TROLL",
+      "observed": 910.0,
+      "model": 940.7498,
+      "middle": 936.5,
+      "fixed": 902.0
+    },
+    {
+      "well": "31/5-I-21 H",
+      "field": "TROLL",
+      "observed": 914.5,
+      "model": 940.7498,
+      "middle": 936.5,
+      "fixed": 902.0
+    },
+    {
+      "well": "31/5-I-32 Y1H",
+      "field": "TROLL",
+      "observed": 916.2,
+      "model": 940.7498,
+      "middle": 936.5,
+      "fixed": 902.0
+    },
+    {
+      "well": "31/5-J-11 H",
+      "field": "TROLL",
+      "observed": 890.0,
+      "model": 940.7498,
+      "middle": 936.5,
+      "fixed": 902.0
+    },
+    {
+      "well": "31/5-J-13 H",
+      "field": "TROLL",
+      "observed": 890.5,
+      "model": 940.7498,
+      "middle": 936.5,
+      "fixed": 902.0
+    }
+  ]
+}

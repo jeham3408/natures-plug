@@ -101,16 +101,17 @@ function drawScatter(host, sites, stat) {
   host.replaceChildren(s);
 }
 
-function drawBars(host, cv) {
-  const rows = [["line", "This model: thickness follows the Hordaland Group"], ["nearest", "Copy the thickness from the nearest known site"],
-    ["rule", "Fixed height above the Rogaland top"], ["middle", "Plain guess: the middle of the Hordaland Group"]];
+const fieldComparison = [["line", "This model: thickness follows the Hordaland Group"], ["nearest", "Copy the thickness from the nearest known site"],
+  ["rule", "Fixed height above the Rogaland top"], ["middle", "Plain guess: the middle of the Hordaland Group"]];
+
+function drawBars(host, cv, rows, description, digits = 0) {
   const W = 380, rowH = 62, H = rows.length * rowH + 8, max = Math.max(...rows.map((r) => cv[r[0]].mae)), x0 = 4, bw = W - 70;
-  const s = svg(W, H); s.setAttribute("aria-label", "Average miss in metres for four ways to predict the top");
+  const s = svg(W, H); s.setAttribute("aria-label", description);
   rows.forEach(([k, label], i) => {
     const y = i * rowH + 6, v = cv[k].mae, w = Math.max(3, v / max * bw);
     el(s, "text", { class: "lab", x: x0, y: y + 13 }, label);
-    el(s, "rect", { x: x0, y: y + 21, width: w, height: 20, rx: 4, fill: k === "line" ? "var(--accent)" : "var(--muted)", opacity: k === "line" ? 1 : .55 });
-    el(s, "text", { class: "val", x: x0 + w + 8, y: y + 36 }, `${fmt(v)} m`);
+    el(s, "rect", { x: x0, y: y + 21, width: w, height: 20, rx: 4, fill: i === 0 ? "var(--accent)" : "var(--muted)", opacity: i === 0 ? 1 : .55 });
+    el(s, "text", { class: "val", x: x0 + w + 8, y: y + 36 }, `${fmt(v, digits)} m`);
   });
   host.replaceChildren(s);
 }
@@ -171,8 +172,26 @@ function drawCases(root, B) {
     `So the screening is cautious: it misses most of the places where clay was accepted. One reason is that it tests the clay against the pressure of the main reservoir, while several of these wells used it against a shallower zone or used the Shetland Group, which the formation level does not count.`;
 }
 
-/** Fill the evidence sheet. `barrier` is data/barrier.json or null when it could not be loaded. */
-export function renderEvidence(root, G, barrier) {
+function drawIndependentCheck(card, check) {
+  card.hidden = !check;
+  if (!check) return;
+  const group = check.independent, audit = check.manual_check;
+  const q = (selector) => card.querySelector(selector);
+  q("#gc-check-title").textContent = `Independent check: ${group.sites} new sites`;
+  q("#gc-check-sub").textContent = `At sites at least ${check.minimum_training_distance_km} km from the nearest training site, we compared predictions with tops in final well reports and measured the mean absolute error.`;
+  drawBars(q("#gc-check-bars"), group, [["model", "This model"], ["middle", "Middle of the Hordaland Group"], ["fixed", "Fixed height"]],
+    "Mean absolute depth error per site in metres", 1);
+  const bias = group.model.bias;
+  q("#gc-check-findings").textContent = `${group.troll_sites} of ${group.sites} sites are on Troll. The sites share ${group.references} reference wells. ` +
+    `The Hordaland midpoint performs as well as the model here. On average the model puts the top about ${fmt(Math.abs(bias))} m too ${bias < 0 ? "shallow" : "deep"}. ` +
+    `${audit.correct} of ${audit.drawn} hand-checked readings matched the tables. The final formation-top tables are a better source than some entries in the original answer key.`;
+  const credit = q("#gc-check-credit");
+  credit.href = check.reader_repository;
+  credit.textContent = check.credit;
+}
+
+/** Fill the evidence sheet with the available report data. */
+export function renderEvidence(root, G, barrier, check = null) {
   const R = G.rule, cv = G.cv.field, ok = G.sites.filter((s) => s.ok), q = (id) => root.querySelector(id);
   q("#gc-kpis").innerHTML = [
     [fmt(R.named_wellbores), "wellbores whose public reports name the Green Clay"],
@@ -186,8 +205,9 @@ export function renderEvidence(root, G, barrier) {
   q("#gc-sites-sub").textContent = `${R.sites_all} sites with a quoted depth, from ${fmt(R.mentions)} mentions in ${fmt(R.named_wellbores)} wellbores. Predicted depths are from the model fitted without that field.`;
   q("#gc-logs-sub").textContent = `Median of ${G.logs.n.rdep} log wells, each log scaled to its own Hordaland Group average. The band is a typical predicted interval.`;
   drawScatter(q("#gc-scatter"), ok, cv.line);
-  drawBars(q("#gc-bars"), cv);
+  drawBars(q("#gc-bars"), cv, fieldComparison, "Average miss in metres for four ways to predict the top");
   drawStack(q("#gc-stack"), G.logs, R);
   q("#gc-sites").innerHTML = sitesTable(G.sites);
   if (barrier) drawCases(root, barrier); else q("#gc-cases-card").hidden = true;
+  drawIndependentCheck(q("#gc-check-card"), check);
 }

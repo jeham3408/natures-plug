@@ -61,3 +61,25 @@ test("every documented barrier case keeps its source and a valid outcome", () =>
   }
   assert.ok(B.cases.some((c) => c.gc && c.outcome === "failed") && B.cases.some((c) => c.gc && c.outcome === "used"));
 });
+
+test("the independent check matches the completion-report analysis and fits under 15 kB", () => {
+  const file = readFileSync(new URL("../data/greenclay_check.json", import.meta.url));
+  assert.ok(file.length < 15_000);
+  const check = JSON.parse(file);
+  const source = JSON.parse(readFileSync(new URL("../pipeline/greenclay/completion_reports/result.json", import.meta.url)));
+  const group = check.independent;
+  assert.deepEqual(group, source.primary.independent);
+  assert.deepEqual([group.sites, group.wells, group.references, group.troll_sites], [39, 50, 13, 38]);
+  assert.deepEqual([group.model.mae, group.middle.mae, group.fixed.mae, group.model.bias], [51.5, 52.2, 79.5, -36.6]);
+  assert.deepEqual(check.all_new, source.primary.new);
+  assert.deepEqual(check.bootstrap, source.independent_cluster_bootstrap);
+  assert.deepEqual(check.calibration, source.calibration.retained);
+  assert.deepEqual(check.manual_check, source.manual_check);
+  assert.deepEqual(check.training_field_cv, source.training_field_cv);
+  assert.equal(check.minimum_training_distance_km, 2);
+  const independent = source.per_site.filter((s) => !s.same_key && s.train_km >= check.minimum_training_distance_km);
+  assert.equal(check.sites.length, group.sites);
+  assert.deepEqual(check.sites, independent.map((s) => ({
+    well: s.source.well, field: s.field, observed: s.tvd, model: s.model, middle: s.middle, fixed: s.fixed,
+  })));
+});
