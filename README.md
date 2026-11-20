@@ -83,6 +83,36 @@ What to keep in mind: the answer key is small and all of it is in the northern N
 
 Rebuild it with the three scripts in [`pipeline/greenclay/`](pipeline/greenclay/); `gc_picks.csv` there is the answer key.
 
+### Independent check with a teammate's report reader
+
+At 39 sites at least 2 km from the nearest training site, the Green Clay model and the midpoint of the Hordaland Group did equally well per site. Their mean absolute errors were **51.5 m and 52.2 m**, compared with **79.5 m** for a fixed height of 310 m. These sites used 13 reference wells. Of the 39 sites, 38 were on Troll and one on Oseberg Sør. All were within 10 km of training. The model placed the top 36.6 m too shallow in the independent group and 35.4 m too shallow across all new sites on average, compared with a bias of +4.2 m when whole training fields were left out. Green Clay tops read with Fredric Hegland's report reader (frheg/hackathon-force). [Original reader](https://github.com/frheg/hackathon-force/blob/e923fb230e824ca9ed63aa00d906fa2087c397e8/app/sketches/greenclay.py) · [Results and source cells](pipeline/greenclay/completion_reports/result.json)
+
+<details>
+<summary>Reference wells, fields and report checks</summary>
+
+The 58 new sites used 21 reference wells and included 50 sites on Troll. The 19 sites under 2 km are in the same platform or well-template areas as training sites. A further 10 sites shared an exact training-site key and are excluded from both groups below.
+
+| Sites given equal weight within each reference well, then wells given equal weight | Sites | Reference wells | Model MAE | Fixed height MAE | Midpoint MAE |
+|---|---:|---:|---:|---:|---:|
+| All new sites | 58 | 21 | 55.9 m | 81.2 m | 94.5 m |
+| Independent check, at least 2 km | 39 | 13 | 55.0 m | 84.9 m | 66.1 m |
+
+Resampling the 13 reference wells together with their sites (2,000 draws, seed 20261120) gives a 90% interval of **41.2–65.2 m** for the independent per-site model MAE and **−12.0 to +7.0 m** for model minus midpoint. A broader check by a teammate gave the model and midpoint 55.3 m each and fixed height 87.8 m across 57 sites at least 2 km from training.
+
+| Field, all new sites | Sites | Wellbores | Model MAE | Fixed height MAE | Midpoint MAE |
+|---|---:|---:|---:|---:|---:|
+| Troll | 50 | 64 | 49.6 m | 80.9 m | 45.4 m |
+| Brage | 3 | 7 | 54.2 m | 49.5 m | 170.0 m |
+| Oseberg | 2 | 5 | 51.3 m | 56.1 m | 242.9 m |
+| Oseberg Øst | 2 | 7 | 65.9 m | 37.6 m | 242.1 m |
+| Oseberg Sør | 1 | 2 | 57.5 m | 25.0 m | 244.5 m |
+
+We checked table headers for actual vertical depth from the rig floor. The retained templates agreed within 5 m in 29 of 30 readable calibration wellbores out of 56 with markers. All 25 randomly drawn readings matched their OCR pages. The largest model error was 143.7 m. A separate reviewer confirmed 29 of 30 readings in a broader sample, finding one prognosis in exploration well 31/4-10. Columns with times, forecasts and depth below sea level can sit beside the actual RKB depth.
+
+Final tops tables are a better source for some training labels. The key has 1,681.7 m for 30/9-F-5 and F-5 A, while the final F-5 A table gives 2,718 m MD and 1,736.9 m TVD RKB. This accounts for both misses in the three-well `actual_rkb` calibration. For 30/6-E-1 the drilling programme gives 1,667 m and the final table 1,657 m. For 31/2-L-13 H the mud log gives 938.4 m and the final table 932.0 m. For 31/5-J-41 the MWD report gives 790 m and the final table 817 m below sea level (840 m TVD RKB). [Reproduce the check](pipeline/greenclay/completion_reports/README.md)
+
+</details>
+
 ### Where clay was used as a barrier, and where it did not hold
 
 The same page lists 15 wells from the public reports, read by hand from a keyword search (`pipeline/barrier/`): 7 where clay was used as a barrier or confirmed on a log, 2 where it did not hold and 6 where it was planned and the result is not public. Five of them name the Green Clay. It is reported as a barrier element on Veslefrikk (30/3-A-20 A) and confirmed on a log on Brage (31/4-A-32 A). On Visund (34/8-A-2 H), 792 m of it behind uncemented casing was assumed to have closed in after two years, and total mud losses showed that it had not.
